@@ -10,6 +10,7 @@ Arrow drop marker
 Arrow drop marker distance indicator
 Color inversion for better contrast
 Incline level indicator
+Reticle and distance indicator color inversion based on background color
 
 Requirements
 opencv for android version 10 - Download link - https://opencv.org/releases/
