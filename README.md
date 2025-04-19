@@ -3,9 +3,9 @@ This is an archery application that can be run on smartphones. The smartphone ha
 
 Features:
 Aiming reticle
-Aiming reticle Zeroing keys.
+Aiming reticle, Zeroing keys.
 Aiming reticle Zerod distance indicator
-Zooming
+Zooming (found the inbuilt screen magnification with accessibility along with zoomed out to be better)
 Arrow drop marker
 Arrow drop marker distance indicator
 Color inversion for better contrast
@@ -13,8 +13,8 @@ Incline level indicator
 Reticle and distance indicator color inversion based on background color
 
 Requirements
-opencv for android version 10 - Download link - https://opencv.org/releases/
+opencv for Android version 10 - Download link - https://opencv.org/releases/
 Android Studio Ladybug
 Language - Kotlin
-API level ?
-The app is tested on android phone with 8 GB ram and aspect ratio 16:9.
+API level 35
+The app is tested on an Android phone with 8 GB of RAM and an aspect ratio of 16:9.
