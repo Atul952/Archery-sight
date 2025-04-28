@@ -18,3 +18,4 @@ Android Studio Ladybug
 Language - Kotlin
 API level 35
 The app is tested on an Android phone with 8 GB of RAM and an aspect ratio of 16:9.
+![image](https://github.com/user-attachments/assets/6ac7ccdd-b822-49dc-adac-21ef87ebb3fb)
