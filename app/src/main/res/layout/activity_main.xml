@@ -1,0 +1,143 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    tools:context=".MainActivity">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_horizontal"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/buttonStartPreview"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Start Preview" />
+
+        <Button
+            android:id="@+id/buttonInvert"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentTop="true"
+            android:layout_centerHorizontal="true"
+            android:text="Invert" />
+
+        <Button
+            android:id="@+id/buttonStopPreview"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Stop Preview" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="450dp"
+        android:gravity="center_horizontal"
+        android:orientation="horizontal">
+
+        <com.example.crosshair.MyJavaCameraView
+            android:id="@+id/cameraView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_margin="0dp"
+            android:padding="0dp" />
+
+        <!-- Set max value based on maxZoomLevel -->
+
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/textViewStatus"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="15dp"
+        android:text="Status" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:gravity="center_horizontal"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/buttonUp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Up" />
+
+        <Button
+            android:id="@+id/buttonDown"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Down" />
+
+        <Button
+            android:id="@+id/buttonLeft"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Left" />
+
+        <Button
+            android:id="@+id/buttonRight"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Right" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:gravity="center_horizontal"
+        android:orientation="horizontal">
+
+        <SeekBar
+            android:id="@+id/seekBarZoom"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:max="70" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:gravity="center_horizontal"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/buttonDistPlus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Dist +" />
+
+        <Button
+            android:id="@+id/buttonDistMinus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Dist -" />
+
+        <Button
+            android:id="@+id/buttonDropPlus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Drop +" />
+
+        <Button
+            android:id="@+id/buttonDropMinus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Drop -" />
+
+    </LinearLayout>
+
+    <!-- Add Zoom Buttons Here -->
+
+</LinearLayout>

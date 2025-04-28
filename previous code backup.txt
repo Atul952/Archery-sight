@@ -1,0 +1,2423 @@
+//Old working code
+//package com.example.crosshair
+//
+//import android.Manifest
+//import android.content.Context
+//import android.content.pm.PackageManager
+//import android.os.Bundle
+//import android.widget.Button
+//import android.widget.CheckBox
+//import android.widget.TextView
+//import androidx.appcompat.app.AppCompatActivity
+//import androidx.core.app.ActivityCompat
+//import androidx.core.content.ContextCompat
+//import org.opencv.android.CameraBridgeViewBase
+//import org.opencv.android.OpenCVLoader
+//import org.opencv.core.CvType
+//import org.opencv.core.Mat
+//import org.opencv.core.Point
+//import org.opencv.core.Scalar
+//import org.opencv.imgproc.Imgproc
+//
+//class MainActivity : AppCompatActivity(), CameraBridgeViewBase.CvCameraViewListener2 {
+//
+//    private lateinit var buttonStartPreview: Button
+//    private lateinit var buttonStopPreview: Button
+//    private lateinit var checkBoxProcessing: CheckBox
+//    private lateinit var openCvCameraView: MyJavaCameraView
+//    private lateinit var inputMat: Mat
+//    private lateinit var buttonZoomIn: Button
+//    private lateinit var buttonZoomOut: Button
+//
+//    private var isPreviewActive = false
+//    private lateinit var textViewStatus: TextView
+//    private var isOpenCvInitialized = false
+//    private val cameraPermissionRequestCode = 100
+//
+//    private var reticleX = 320
+//    private var reticleY = 240
+//    private var stepSize = 5
+//    private var distance = 100
+//    private var bulletDrop = 0
+//    private var zoomLevel = 0
+//    private val maxZoomLevel = 40 // Increase max zoom level
+//
+//    override fun onCreate(savedInstanceState: Bundle?) {
+//        super.onCreate(savedInstanceState)
+//        setContentView(R.layout.activity_main)
+//
+//        textViewStatus = findViewById(R.id.textViewStatus)
+//        buttonStartPreview = findViewById(R.id.buttonStartPreview)
+//        buttonStopPreview = findViewById(R.id.buttonStopPreview)
+//        checkBoxProcessing = findViewById(R.id.checkboxEnableProcessing)
+//        openCvCameraView = findViewById(R.id.cameraView)
+//        buttonZoomIn = findViewById(R.id.buttonZoomIn)
+//        buttonZoomOut = findViewById(R.id.buttonZoomOut)
+//
+//        if (!OpenCVLoader.initDebug()) {
+//            textViewStatus.text = "OpenCV initialization failed"
+//        } else {
+//            textViewStatus.text = "OpenCV initialized"
+//            isOpenCvInitialized = true
+//        }
+//
+//        // Retrieve saved reticle position from SharedPreferences
+//        val sharedPreferences = getSharedPreferences("CrosshairPrefs", Context.MODE_PRIVATE)
+//        reticleX = sharedPreferences.getInt("reticleX", 320)
+//        reticleY = sharedPreferences.getInt("reticleY", 240)
+//
+//        checkCameraPermission()
+//
+//        openCvCameraView.setCameraIndex(CameraBridgeViewBase.CAMERA_ID_BACK)
+//        openCvCameraView.setCvCameraViewListener(this)
+//
+//        buttonStartPreview.setOnClickListener {
+//            if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+//                == PackageManager.PERMISSION_GRANTED) {
+//                openCvCameraView.enableView()
+//                isPreviewActive = true
+//            } else {
+//                checkCameraPermission()
+//            }
+//            updateControls()
+//        }
+//
+//        buttonStopPreview.setOnClickListener {
+//            openCvCameraView.disableView()
+//            isPreviewActive = false
+//            updateControls()
+//        }
+//
+//        findViewById<Button>(R.id.buttonUp).setOnClickListener { reticleY -= stepSize }
+//        findViewById<Button>(R.id.buttonDown).setOnClickListener { reticleY += stepSize }
+//        findViewById<Button>(R.id.buttonLeft).setOnClickListener { reticleX -= stepSize }
+//        findViewById<Button>(R.id.buttonRight).setOnClickListener { reticleX += stepSize }
+//        findViewById<Button>(R.id.buttonDistPlus).setOnClickListener { distance += 10 }
+//        findViewById<Button>(R.id.buttonDistMinus).setOnClickListener { distance -= 10 }
+//        findViewById<Button>(R.id.buttonDropPlus).setOnClickListener { bulletDrop += stepSize }
+//        findViewById<Button>(R.id.buttonDropMinus).setOnClickListener { bulletDrop -= stepSize }
+//
+//        buttonZoomIn.setOnClickListener { zoom(true) }
+//        buttonZoomOut.setOnClickListener { zoom(false) }
+//
+//        updateControls()
+//    }
+//
+//    private fun checkCameraPermission() {
+//        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+//            != PackageManager.PERMISSION_GRANTED) {
+//            ActivityCompat.requestPermissions(
+//                this,
+//                arrayOf(Manifest.permission.CAMERA),
+//                cameraPermissionRequestCode
+//            )
+//        } else {
+//            openCvCameraView.setCameraPermissionGranted()
+//        }
+//    }
+//
+//    private fun updateControls() {
+//        buttonStartPreview.isEnabled = !isPreviewActive && isOpenCvInitialized
+//        buttonStopPreview.isEnabled = isPreviewActive
+//    }
+//
+//    private fun zoom(increment: Boolean) {
+//        zoomLevel = if (increment) {
+//            (zoomLevel + 1).coerceAtMost(maxZoomLevel)
+//        } else {
+//            (zoomLevel - 1).coerceAtLeast(0)
+//        }
+//
+//        openCvCameraView.setZoom(zoomLevel)
+//    }
+//
+//    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+//        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+//        if (requestCode == cameraPermissionRequestCode) {
+//            if ((grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED)) {
+//                openCvCameraView.setCameraPermissionGranted()
+//                textViewStatus.text = "Camera permission granted"
+//            } else {
+//                textViewStatus.text = "Camera permission required"
+//            }
+//        }
+//    }
+//
+//    override fun onCameraViewStarted(width: Int, height: Int) {
+//        inputMat = Mat(height, width, CvType.CV_8UC4)
+//        isPreviewActive = true
+//        updateControls()
+//    }
+//
+//    override fun onCameraViewStopped() {
+//        inputMat.release()
+//        isPreviewActive = false
+//        updateControls()
+//    }
+//
+//    override fun onCameraFrame(inputFrame: CameraBridgeViewBase.CvCameraViewFrame?): Mat {
+//        inputFrame!!.rgba().copyTo(inputMat)
+//
+//        drawReticle(inputMat, reticleX, reticleY, getContrastingColor(inputMat, reticleX, reticleY))
+//        drawDistanceMarker(inputMat, distance)
+//        drawBulletDropMarker(inputMat, reticleX, reticleY, bulletDrop, getContrastingColor(inputMat, reticleX, reticleY))
+//
+//        return inputMat
+//    }
+//
+//    private fun drawReticle(frame: Mat, x: Int, y: Int, color: Scalar) {
+//        Imgproc.line(frame, Point(x - 20.0, y.toDouble()), Point(x + 20.0, y.toDouble()), color, 2)
+//        Imgproc.line(frame, Point(x.toDouble(), y - 20.0), Point(x.toDouble(), y + 20.0), color, 2)
+//    }
+//    private fun drawDistanceMarker(frame: Mat, distance: Int) {
+//        Imgproc.putText(frame, "Distance: $distance m", Point(150.0, 590.0), Imgproc.FONT_HERSHEY_SIMPLEX, 1.0, Scalar(0.0, 255.0, 0.0), 2)
+//    }
+//
+//    private fun drawBulletDropMarker(frame: Mat, x: Int, y: Int, drop: Int, color: Scalar) {
+//        Imgproc.circle(frame, Point(x.toDouble(), (y + drop).toDouble()), 5, color, -1)
+//        Imgproc.putText(frame, "Drop: $drop px", Point(150.0, 560.0), Imgproc.FONT_HERSHEY_SIMPLEX, 1.0, Scalar(0.0, 255.0, 0.0), 2)
+//    }
+//
+//    private fun getContrastingColor(frame: Mat, x: Int, y: Int): Scalar {
+//        val color = frame.get(y, x) ?: doubleArrayOf(255.0, 255.0, 255.0)
+//        val brightness = (color[0] * 0.299 + color[1] * 0.587 + color[2] * 0.114).toInt()
+//        return if (brightness > 128) Scalar(0.0, 0.0, 0.0) else Scalar(255.0, 255.0, 255.0)
+//    }
+//
+//    // Save the reticle position in SharedPreferences when the activity is paused
+//    override fun onPause() {
+//        super.onPause()
+//        val sharedPreferences = getSharedPreferences("CrosshairPrefs", Context.MODE_PRIVATE)
+//        with(sharedPreferences.edit()) {
+//            putInt("reticleX", reticleX)
+//            putInt("reticleY", reticleY)
+//            apply()
+//        }
+//    }
+//}
+//working code used
+//package com.example.crosshair
+//
+//import android.Manifest
+//import android.content.Context
+//import android.content.pm.PackageManager
+//import android.os.Bundle
+//import android.widget.Button
+//import android.widget.CheckBox
+//import android.widget.TextView
+//import androidx.appcompat.app.AppCompatActivity
+//import androidx.core.app.ActivityCompat
+//import androidx.core.content.ContextCompat
+//import org.opencv.android.CameraBridgeViewBase
+//import org.opencv.android.OpenCVLoader
+//import org.opencv.core.CvType
+//import org.opencv.core.Mat
+//import org.opencv.core.Point
+//import org.opencv.core.Scalar
+//import org.opencv.imgproc.Imgproc
+//
+//class MainActivity : AppCompatActivity(), CameraBridgeViewBase.CvCameraViewListener2 {
+//
+//    private lateinit var buttonStartPreview: Button
+//    private lateinit var buttonStopPreview: Button
+//    private lateinit var checkBoxProcessing: CheckBox
+//    private lateinit var openCvCameraView: MyJavaCameraView
+//    private lateinit var inputMat: Mat
+//    private lateinit var buttonZoomIn: Button
+//    private lateinit var buttonZoomOut: Button
+//
+//    private var isPreviewActive = false
+//    private lateinit var textViewStatus: TextView
+//    private var isOpenCvInitialized = false
+//    private val cameraPermissionRequestCode = 100
+//
+//    private var reticleX = 320
+//    private var reticleY = 240
+//    private var stepSize = 5
+//    private var distance = 100
+//    private var bulletDrop = 0
+//    private var zoomLevel = 0
+//    private val maxZoomLevel = 40 // Increase max zoom level
+//
+//    override fun onCreate(savedInstanceState: Bundle?) {
+//        super.onCreate(savedInstanceState)
+//        setContentView(R.layout.activity_main)
+//
+//        textViewStatus = findViewById(R.id.textViewStatus)
+//        buttonStartPreview = findViewById(R.id.buttonStartPreview)
+//        buttonStopPreview = findViewById(R.id.buttonStopPreview)
+//        checkBoxProcessing = findViewById(R.id.checkboxEnableProcessing)
+//        openCvCameraView = findViewById(R.id.cameraView)
+//        buttonZoomIn = findViewById(R.id.buttonZoomIn)
+//        buttonZoomOut = findViewById(R.id.buttonZoomOut)
+//
+//        if (!OpenCVLoader.initDebug()) {
+//            textViewStatus.text = "OpenCV initialization failed"
+//        } else {
+//            textViewStatus.text = "OpenCV initialized"
+//            isOpenCvInitialized = true
+//        }
+//
+//        // Retrieve saved reticle position from SharedPreferences
+//        val sharedPreferences = getSharedPreferences("CrosshairPrefs", Context.MODE_PRIVATE)
+//        reticleX = sharedPreferences.getInt("reticleX", 320)
+//        reticleY = sharedPreferences.getInt("reticleY", 240)
+//
+//        checkCameraPermission()
+//
+//        openCvCameraView.setCameraIndex(CameraBridgeViewBase.CAMERA_ID_BACK)
+//        openCvCameraView.setCvCameraViewListener(this)
+//
+//        buttonStartPreview.setOnClickListener {
+//            if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+//                == PackageManager.PERMISSION_GRANTED) {
+//                openCvCameraView.enableView()
+//                isPreviewActive = true
+//            } else {
+//                checkCameraPermission()
+//            }
+//            updateControls()
+//        }
+//
+//        buttonStopPreview.setOnClickListener {
+//            openCvCameraView.disableView()
+//            isPreviewActive = false
+//            updateControls()
+//        }
+//
+//        findViewById<Button>(R.id.buttonUp).setOnClickListener { reticleY -= stepSize }
+//        findViewById<Button>(R.id.buttonDown).setOnClickListener { reticleY += stepSize }
+//        findViewById<Button>(R.id.buttonLeft).setOnClickListener { reticleX -= stepSize }
+//        findViewById<Button>(R.id.buttonRight).setOnClickListener { reticleX += stepSize }
+//        findViewById<Button>(R.id.buttonDistPlus).setOnClickListener { distance += 10 }
+//        findViewById<Button>(R.id.buttonDistMinus).setOnClickListener { distance -= 10 }
+//        findViewById<Button>(R.id.buttonDropPlus).setOnClickListener { bulletDrop += stepSize }
+//        findViewById<Button>(R.id.buttonDropMinus).setOnClickListener { bulletDrop -= stepSize }
+//
+//        buttonZoomIn.setOnClickListener { zoom(true) }
+//        buttonZoomOut.setOnClickListener { zoom(false) }
+//
+//        updateControls()
+//    }
+//
+//    private fun checkCameraPermission() {
+//        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+//            != PackageManager.PERMISSION_GRANTED) {
+//            ActivityCompat.requestPermissions(
+//                this,
+//                arrayOf(Manifest.permission.CAMERA),
+//                cameraPermissionRequestCode
+//            )
+//        } else {
+//            openCvCameraView.setCameraPermissionGranted()
+//        }
+//    }
+//
+//    private fun updateControls() {
+//        buttonStartPreview.isEnabled = !isPreviewActive && isOpenCvInitialized
+//        buttonStopPreview.isEnabled = isPreviewActive
+//    }
+//
+//    private fun zoom(increment: Boolean) {
+//        zoomLevel = if (increment) {
+//            (zoomLevel + 1).coerceAtMost(maxZoomLevel)
+//        } else {
+//            (zoomLevel - 1).coerceAtLeast(0)
+//        }
+//
+//        openCvCameraView.setZoom(zoomLevel)
+//    }
+//
+//    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+//        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+//        if (requestCode == cameraPermissionRequestCode) {
+//            if ((grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED)) {
+//                openCvCameraView.setCameraPermissionGranted()
+//                textViewStatus.text = "Camera permission granted"
+//            } else {
+//                textViewStatus.text = "Camera permission required"
+//            }
+//        }
+//    }
+//
+//    override fun onCameraViewStarted(width: Int, height: Int) {
+//        inputMat = Mat(height, width, CvType.CV_8UC4)
+//        isPreviewActive = true
+//        updateControls()
+//    }
+//
+//    override fun onCameraViewStopped() {
+//        inputMat.release()
+//        isPreviewActive = false
+//        updateControls()
+//    }
+//
+//    override fun onCameraFrame(inputFrame: CameraBridgeViewBase.CvCameraViewFrame?): Mat {
+//        inputFrame!!.rgba().copyTo(inputMat)
+//
+//        val reticleColor = getContrastingColor(inputMat, reticleX, reticleY)
+//        val distanceTextColor = getTextColorBasedOnBackground(inputMat, Point(150.0, 590.0))
+//        val dropTextColor = getTextColorBasedOnBackground(inputMat, Point(150.0, 560.0))
+//
+//        drawReticle(inputMat, reticleX, reticleY, reticleColor)
+//        drawDistanceMarker(inputMat, distance, distanceTextColor)
+//        drawBulletDropMarker(inputMat, reticleX, reticleY, bulletDrop, reticleColor, dropTextColor)
+//
+//        return inputMat
+//    }
+//
+//    private fun drawReticle(frame: Mat, x: Int, y: Int, color: Scalar) {
+//        Imgproc.line(frame, Point(x - 20.0, y.toDouble()), Point(x + 20.0, y.toDouble()), color, 2)
+//        Imgproc.line(frame, Point(x.toDouble(), y - 20.0), Point(x.toDouble(), y + 20.0), color, 2)
+//    }
+//
+//    private fun drawDistanceMarker(frame: Mat, distance: Int, textColor: Scalar) {
+//        Imgproc.putText(frame, "Distance: $distance m", Point(150.0, 590.0), Imgproc.FONT_HERSHEY_SIMPLEX, 1.0, textColor, 2)
+//    }
+//
+//    private fun drawBulletDropMarker(frame: Mat, x: Int, y: Int, drop: Int, color: Scalar, textColor: Scalar) {
+//        Imgproc.circle(frame, Point(x.toDouble(), (y + drop).toDouble()), 5, color, -1)
+//        Imgproc.putText(frame, "Drop: $drop px", Point(150.0, 560.0), Imgproc.FONT_HERSHEY_SIMPLEX, 1.0, textColor, 2)
+//    }
+//
+//    private fun getContrastingColor(frame: Mat, x: Int, y: Int): Scalar {
+//        val color = frame.get(y, x) ?: doubleArrayOf(255.0, 255.0, 255.0)
+//        val brightness = (color[0] * 0.299 + color[1] * 0.587 + color[2] * 0.114).toInt()
+//        return if (brightness > 128) Scalar(0.0, 0.0, 0.0) else Scalar(255.0, 255.0, 255.0)
+//    }
+//
+//    private fun getTextColorBasedOnBackground(frame: Mat, point: Point): Scalar {
+//        val color = frame.get(point.y.toInt(), point.x.toInt()) ?: doubleArrayOf(255.0, 255.0, 255.0)
+//        val brightness = (color[0] * 0.299 + color[1] * 0.587 + color[2] * 0.114).toInt()
+//        return if (brightness > 128) Scalar(255.0, 0.0, 0.0) else Scalar(0.0, 255.0, 0.0)  // Use green for dark backgrounds and red for light backgrounds
+//    }
+//
+//    private fun getBackgroundColor(frame: Mat, x: Int, y: Int): Scalar {
+//        val color = frame.get(y, x) ?: doubleArrayOf(255.0, 255.0, 255.0)
+//        return Scalar(color[0], color[1], color[2])
+//    }
+//
+//    // Save the reticle position in SharedPreferences when the activity is paused
+//    override fun onPause() {
+//        super.onPause()
+//        val sharedPreferences = getSharedPreferences("CrosshairPrefs", Context.MODE_PRIVATE)
+//        with(sharedPreferences.edit()) {
+//            putInt("reticleX", reticleX)
+//            putInt("reticleY", reticleY)
+//            apply()
+//        }
+//    }
+//}
+//
+//trying to the ai
+//package com.example.crosshair
+//
+//import android.Manifest
+//import android.content.Context
+//import android.content.pm.PackageManager
+//import android.os.Bundle
+//import android.util.Log
+//import android.widget.Button
+//import android.widget.CheckBox
+//import android.widget.TextView
+//import androidx.appcompat.app.AppCompatActivity
+//import androidx.core.app.ActivityCompat
+//import androidx.core.content.ContextCompat
+//import org.opencv.android.CameraBridgeViewBase
+//import org.opencv.android.OpenCVLoader
+//import org.opencv.core.CvType
+//import org.opencv.core.Mat
+//import org.opencv.core.Point
+//import org.opencv.core.Scalar
+//import org.opencv.imgproc.Imgproc
+//import org.tensorflow.lite.Interpreter
+//import org.tensorflow.lite.support.common.FileUtil
+//import java.nio.ByteBuffer
+//import java.nio.ByteOrder
+//import java.nio.FloatBuffer
+//
+//class MainActivity : AppCompatActivity(), CameraBridgeViewBase.CvCameraViewListener2 {
+//
+//    private lateinit var buttonStartPreview: Button
+//    private lateinit var buttonStopPreview: Button
+//    private lateinit var checkBoxProcessing: CheckBox
+//    private lateinit var openCvCameraView: MyJavaCameraView
+//    private lateinit var inputMat: Mat
+//    private lateinit var buttonZoomIn: Button
+//    private lateinit var buttonZoomOut: Button
+//
+//    private var isPreviewActive = false
+//    private lateinit var textViewStatus: TextView
+//    private var isOpenCvInitialized = false
+//    private val cameraPermissionRequestCode = 100
+//
+//    private var reticleX = 320
+//    private var reticleY = 240
+//    private var stepSize = 5
+//    private var distance = 100
+//    private var bulletDrop = 0
+//    private var zoomLevel = 0
+//    private val maxZoomLevel = 40 // Increase max zoom level
+//
+//    companion object {
+//        private const val MODEL_PATH = "assets/last_float32.tflite"
+//    }
+//
+//    private val tflite by lazy {
+//        Interpreter(FileUtil.loadMappedFile(this, MODEL_PATH))
+//    }
+//
+//    override fun onCreate(savedInstanceState: Bundle?) {
+//        super.onCreate(savedInstanceState)
+//        setContentView(R.layout.activity_main)
+//
+//        textViewStatus = findViewById(R.id.textViewStatus)
+//        buttonStartPreview = findViewById(R.id.buttonStartPreview)
+//        buttonStopPreview = findViewById(R.id.buttonStopPreview)
+//        checkBoxProcessing = findViewById(R.id.checkboxEnableProcessing)
+//        openCvCameraView = findViewById(R.id.cameraView)
+//        buttonZoomIn = findViewById(R.id.buttonZoomIn)
+//        buttonZoomOut = findViewById(R.id.buttonZoomOut)
+//
+//        if (!OpenCVLoader.initDebug()) {
+//            textViewStatus.text = "OpenCV initialization failed"
+//        } else {
+//            textViewStatus.text = "OpenCV initialized"
+//            isOpenCvInitialized = true
+//        }
+//
+//        // Retrieve saved reticle position from SharedPreferences
+//        val sharedPreferences = getSharedPreferences("CrosshairPrefs", Context.MODE_PRIVATE)
+//        reticleX = sharedPreferences.getInt("reticleX", 320)
+//        reticleY = sharedPreferences.getInt("reticleY", 240)
+//
+//        checkCameraPermission()
+//
+//        openCvCameraView.setCameraIndex(CameraBridgeViewBase.CAMERA_ID_BACK)
+//        openCvCameraView.setCvCameraViewListener(this)
+//
+//        buttonStartPreview.setOnClickListener {
+//            if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+//                == PackageManager.PERMISSION_GRANTED) {
+//                openCvCameraView.enableView()
+//                isPreviewActive = true
+//            } else {
+//                checkCameraPermission()
+//            }
+//            updateControls()
+//        }
+//
+//        buttonStopPreview.setOnClickListener {
+//            openCvCameraView.disableView()
+//            isPreviewActive = false
+//            updateControls()
+//        }
+//
+//        findViewById<Button>(R.id.buttonUp).setOnClickListener { reticleY -= stepSize }
+//        findViewById<Button>(R.id.buttonDown).setOnClickListener { reticleY += stepSize }
+//        findViewById<Button>(R.id.buttonLeft).setOnClickListener { reticleX -= stepSize }
+//        findViewById<Button>(R.id.buttonRight).setOnClickListener { reticleX += stepSize }
+//        findViewById<Button>(R.id.buttonDistPlus).setOnClickListener { distance += 10 }
+//        findViewById<Button>(R.id.buttonDistMinus).setOnClickListener { distance -= 10 }
+//        findViewById<Button>(R.id.buttonDropPlus).setOnClickListener { bulletDrop += stepSize }
+//        findViewById<Button>(R.id.buttonDropMinus).setOnClickListener { bulletDrop -= stepSize }
+//
+//        buttonZoomIn.setOnClickListener { zoom(true) }
+//        buttonZoomOut.setOnClickListener { zoom(false) }
+//
+//        updateControls()
+//    }
+//
+//    private fun checkCameraPermission() {
+//        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+//            != PackageManager.PERMISSION_GRANTED) {
+//            ActivityCompat.requestPermissions(
+//                this,
+//                arrayOf(Manifest.permission.CAMERA),
+//                cameraPermissionRequestCode
+//            )
+//        } else {
+//            openCvCameraView.setCameraPermissionGranted()
+//        }
+//    }
+//
+//    private fun updateControls() {
+//        buttonStartPreview.isEnabled = !isPreviewActive && isOpenCvInitialized
+//        buttonStopPreview.isEnabled = isPreviewActive
+//    }
+//
+//    private fun zoom(increment: Boolean) {
+//        zoomLevel = if (increment) {
+//            (zoomLevel + 1).coerceAtMost(maxZoomLevel)
+//        } else {
+//            (zoomLevel - 1).coerceAtLeast(0)
+//        }
+//
+//        openCvCameraView.setZoom(zoomLevel)
+//    }
+//
+//    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+//        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+//        if (requestCode == cameraPermissionRequestCode) {
+//            if ((grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED)) {
+//                openCvCameraView.setCameraPermissionGranted()
+//                textViewStatus.text = "Camera permission granted"
+//            } else {
+//                textViewStatus.text = "Camera permission required"
+//            }
+//        }
+//    }
+//
+//    override fun onCameraViewStarted(width: Int, height: Int) {
+//        inputMat = Mat(height, width, CvType.CV_8UC4)
+//        isPreviewActive = true
+//        updateControls()
+//    }
+//
+//    override fun onCameraViewStopped() {
+//        inputMat.release()
+//        isPreviewActive = false
+//        updateControls()
+//    }
+//
+//    override fun onCameraFrame(inputFrame: CameraBridgeViewBase.CvCameraViewFrame?): Mat {
+//        inputFrame!!.rgba().copyTo(inputMat)
+//
+//        // YOLO detection
+//        try {
+//            val prediction = doInference()
+//            val predictionValue = prediction["prediction"]?.get(0)?.toString() ?: "No Prediction"
+//            Log.i("PREDICTION: ", predictionValue)
+//        } catch (e: Exception) {
+//            Log.e("ERR: ", e.toString())
+//        }
+//
+//        val reticleColor = getContrastingColor(inputMat, reticleX, reticleY)
+//        val distanceTextColor = getTextColorBasedOnBackground(inputMat, Point(150.0, 590.0))
+//        val dropTextColor = getTextColorBasedOnBackground(inputMat, Point(150.0, 560.0))
+//
+//        drawReticle(inputMat, reticleX, reticleY, reticleColor)
+//        drawDistanceMarker(inputMat, distance, distanceTextColor)
+//        drawBulletDropMarker(inputMat, reticleX, reticleY, bulletDrop, reticleColor, dropTextColor)
+//
+//        return inputMat
+//    }
+//
+//    private fun drawReticle(frame: Mat, x: Int, y: Int, color: Scalar) {
+//        Imgproc.line(frame, Point(x - 20.0, y.toDouble()), Point(x + 20.0, y.toDouble()), color, 2)
+//        Imgproc.line(frame, Point(x.toDouble(), y - 20.0), Point(x.toDouble(), y + 20.0), color, 2)
+//    }
+//
+//    private fun drawDistanceMarker(frame: Mat, distance: Int, textColor: Scalar) {
+//        Imgproc.putText(frame, "Distance: $distance m", Point(150.0, 590.0), Imgproc.FONT_HERSHEY_SIMPLEX, 1.0, textColor, 2)
+//    }
+//
+//    private fun drawBulletDropMarker(frame: Mat, x: Int, y: Int, drop: Int, color: Scalar, textColor: Scalar) {
+//        Imgproc.circle(frame, Point(x.toDouble(), (y + drop).toDouble()), 5, color, -1)
+//        Imgproc.putText(frame, "Drop: $drop px", Point(150.0, 560.0), Imgproc.FONT_HERSHEY_SIMPLEX, 1.0, textColor, 2)
+//    }
+//
+//     private fun getContrastingColor(frame: Mat, x: Int, y: Int): Scalar { val color = frame.get(y, x) ?: doubleArrayOf(255.0, 255.0, 255.0) val brightness = (color[0] * 0.299 + color[1] * 0.587 + color[2] * 0.114).toInt() return if (brightness > 128) Scalar(0.0, 0.0, 0.0) else Scalar(255.0, 255.0, 255.0) }
+//     private fun getTextColorBasedOnBackground(frame: Mat, point: Point): Scalar { val color = frame.get(point.y.toInt(), point.x.toInt()) ?: doubleArrayOf(255.0, 255.0, 255.0) val brightness = (color[0] * 0.299 + color[1] * 0.587 + color[2] * 0.114).toInt() return if (brightness > 128) Scalar(255.0, 0.0, 0.0) else Scalar(0.0, 255.0, 0.0) // Use green for dark backgrounds and red for light backgrounds }
+//     private fun getBackgroundColor(frame: Mat, x: Int, y: Int): Scalar { val color = frame.get(y, x) ?: doubleArrayOf(255.0, 255.0, 255.0) return Scalar(color[0], color[1], color[2]) }
+//    // Save the reticle position in SharedPreferences when the activity is paused
+//    override fun onPause() {
+//        super.onPause()
+//        val sharedPreferences = getSharedPreferences("CrosshairPrefs", Context.MODE_PRIVATE)
+//        with(sharedPreferences.edit()) {
+//            putInt("reticleX", reticleX)
+//            putInt("reticleY", reticleY)
+//            apply()
+//        }
+//    }
+//}
+//
+//package com.example.crosshair
+//
+//import android.Manifest
+//import android.content.Context
+//import android.content.pm.PackageManager
+//import android.os.Bundle
+//import android.widget.Button
+//import android.widget.TextView
+//import androidx.appcompat.app.AppCompatActivity
+//import androidx.core.app.ActivityCompat
+//import androidx.core.content.ContextCompat
+//import org.opencv.android.CameraBridgeViewBase
+//import org.opencv.android.OpenCVLoader
+//import org.opencv.core.CvType
+//import org.opencv.core.Mat
+//import org.opencv.core.Point
+//import org.opencv.core.Scalar
+//import org.opencv.imgproc.Imgproc
+//
+//class MainActivity : AppCompatActivity(), CameraBridgeViewBase.CvCameraViewListener2 {
+//
+//    private lateinit var buttonStartPreview: Button
+//    private lateinit var buttonStopPreview: Button
+//    private lateinit var openCvCameraView: MyJavaCameraView
+//    private lateinit var inputMat: Mat
+//    private lateinit var buttonZoomIn: Button
+//    private lateinit var buttonZoomOut: Button
+//
+//    private var isPreviewActive = false
+//    private lateinit var textViewStatus: TextView
+//    private var isOpenCvInitialized = false
+//    private val cameraPermissionRequestCode = 100
+//
+//    private var reticleX = 320
+//    private var reticleY = 240
+//    private var stepSize = 5
+//    private var distance = 100
+//    private var bulletDrop = 0
+//    private var zoomLevel = 0
+//    private val maxZoomLevel = 70 // Increase max zoom level
+//
+//    override fun onCreate(savedInstanceState: Bundle?) {
+//        super.onCreate(savedInstanceState)
+//        setContentView(R.layout.activity_main)
+//
+//        textViewStatus = findViewById(R.id.textViewStatus)
+//        buttonStartPreview = findViewById(R.id.buttonStartPreview)
+//        buttonStopPreview = findViewById(R.id.buttonStopPreview)
+//        openCvCameraView = findViewById(R.id.cameraView)
+//        buttonZoomIn = findViewById(R.id.buttonZoomIn)
+//        buttonZoomOut = findViewById(R.id.buttonZoomOut)
+//
+//        if (!OpenCVLoader.initDebug()) {
+//            textViewStatus.text = "OpenCV initialization failed"
+//        } else {
+//            textViewStatus.text = "OpenCV initialized"
+//            isOpenCvInitialized = true
+//        }
+//
+//        // Retrieve saved reticle position from SharedPreferences
+//        val sharedPreferences = getSharedPreferences("CrosshairPrefs", Context.MODE_PRIVATE)
+//        reticleX = sharedPreferences.getInt("reticleX", 320)
+//        reticleY = sharedPreferences.getInt("reticleY", 240)
+//
+//        checkCameraPermission()
+//
+//        openCvCameraView.setCameraIndex(CameraBridgeViewBase.CAMERA_ID_BACK)
+//        openCvCameraView.setCvCameraViewListener(this)
+//
+//        buttonStartPreview.setOnClickListener {
+//            if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+//                == PackageManager.PERMISSION_GRANTED) {
+//                openCvCameraView.enableView()
+//                isPreviewActive = true
+//            } else {
+//                checkCameraPermission()
+//            }
+//            updateControls()
+//        }
+//
+//        buttonStopPreview.setOnClickListener {
+//            openCvCameraView.disableView()
+//            isPreviewActive = false
+//            updateControls()
+//        }
+//
+//        findViewById<Button>(R.id.buttonUp).setOnClickListener { reticleY -= stepSize }
+//        findViewById<Button>(R.id.buttonDown).setOnClickListener { reticleY += stepSize }
+//        findViewById<Button>(R.id.buttonLeft).setOnClickListener { reticleX -= stepSize }
+//        findViewById<Button>(R.id.buttonRight).setOnClickListener { reticleX += stepSize }
+//        findViewById<Button>(R.id.buttonDistPlus).setOnClickListener { distance += 10 }
+//        findViewById<Button>(R.id.buttonDistMinus).setOnClickListener { distance -= 10 }
+//        findViewById<Button>(R.id.buttonDropPlus).setOnClickListener { bulletDrop += stepSize }
+//        findViewById<Button>(R.id.buttonDropMinus).setOnClickListener { bulletDrop -= stepSize }
+//
+//        buttonZoomIn.setOnClickListener { zoom(true) }
+//        buttonZoomOut.setOnClickListener { zoom(false) }
+//
+//        updateControls()
+//    }
+//
+//    private fun checkCameraPermission() {
+//        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+//            != PackageManager.PERMISSION_GRANTED) {
+//            ActivityCompat.requestPermissions(
+//                this,
+//                arrayOf(Manifest.permission.CAMERA),
+//                cameraPermissionRequestCode
+//            )
+//        } else {
+//            openCvCameraView.setCameraPermissionGranted()
+//        }
+//    }
+//
+//    private fun updateControls() {
+//        buttonStartPreview.isEnabled = !isPreviewActive && isOpenCvInitialized
+//        buttonStopPreview.isEnabled = isPreviewActive
+//    }
+//
+//    private fun zoom(increment: Boolean) {
+//        zoomLevel = if (increment) {
+//            (zoomLevel + 1).coerceAtMost(maxZoomLevel)
+//        } else {
+//            (zoomLevel - 1).coerceAtLeast(0)
+//        }
+//
+//        openCvCameraView.setZoom(zoomLevel)
+//    }
+//
+//    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+//        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+//        if (requestCode == cameraPermissionRequestCode) {
+//            if ((grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED)) {
+//                openCvCameraView.setCameraPermissionGranted()
+//                textViewStatus.text = "Camera permission granted"
+//            } else {
+//                textViewStatus.text = "Camera permission required"
+//            }
+//        }
+//    }
+//
+//    override fun onCameraViewStarted(width: Int, height: Int) {
+//        inputMat = Mat(height, width, CvType.CV_8UC4)
+//        isPreviewActive = true
+//        updateControls()
+//    }
+//
+//    override fun onCameraViewStopped() {
+//        inputMat.release()
+//        isPreviewActive = false
+//        updateControls()
+//    }
+//
+//    override fun onCameraFrame(inputFrame: CameraBridgeViewBase.CvCameraViewFrame?): Mat {
+//        inputFrame!!.rgba().copyTo(inputMat)
+//
+//        val reticleColor = getContrastingColor(inputMat, reticleX, reticleY)
+//        val distanceTextColor = getTextColorBasedOnBackground(inputMat, Point(150.0, 590.0))
+//        val dropTextColor = getTextColorBasedOnBackground(inputMat, Point(150.0, 560.0))
+//
+//        drawReticle(inputMat, reticleX, reticleY, reticleColor)
+//        drawDistanceMarker(inputMat, distance, distanceTextColor)
+//        drawBulletDropMarker(inputMat, reticleX, reticleY, bulletDrop, reticleColor, dropTextColor)
+//
+//        return inputMat
+//    }
+//
+//    private fun drawReticle(frame: Mat, x: Int, y: Int, color: Scalar) {
+//        Imgproc.line(frame, Point(x - 20.0, y.toDouble()), Point(x + 20.0, y.toDouble()), color, 2)
+//        Imgproc.line(frame, Point(x.toDouble(), y - 20.0), Point(x.toDouble(), y + 20.0), color, 2)
+//    }
+//
+//    private fun drawDistanceMarker(frame: Mat, distance: Int, textColor: Scalar) {
+//        Imgproc.putText(frame, "Distance: $distance m", Point(150.0, 590.0), Imgproc.FONT_HERSHEY_SIMPLEX, 1.0, textColor, 2)
+//    }
+//
+//    private fun drawBulletDropMarker(frame: Mat, x: Int, y: Int, drop: Int, color: Scalar, textColor: Scalar) {
+//        Imgproc.circle(frame, Point(x.toDouble(), (y + drop).toDouble()), 5, color, -1)
+//        Imgproc.putText(frame, "Drop: $drop px", Point(150.0, 560.0), Imgproc.FONT_HERSHEY_SIMPLEX, 1.0, textColor, 2)
+//    }
+//
+//    private fun getContrastingColor(frame: Mat, x: Int, y: Int): Scalar {
+//        val color = frame.get(y, x) ?: doubleArrayOf(255.0, 255.0, 255.0)
+//        val brightness = (color[0] * 0.299 + color[1] * 0.587 + color[2] * 0.114).toInt()
+//        return if (brightness > 128) Scalar(0.0, 0.0, 0.0) else Scalar(255.0, 255.0, 255.0)
+//    }
+//
+//    private fun getTextColorBasedOnBackground(frame: Mat, point: Point): Scalar {
+//        val color = frame.get(point.y.toInt(), point.x.toInt()) ?: doubleArrayOf(255.0, 255.0, 255.0)
+//        val brightness = (color[0] * 0.299 + color[1] * 0.587 + color[2] * 0.114).toInt()
+//        return if (brightness > 128) Scalar(255.0, 0.0, 0.0) else Scalar(0.0, 255.0, 0.0)  // Use green for dark backgrounds and red for light backgrounds
+//    }
+//    private fun getBackgroundColor(frame: Mat, x: Int, y: Int): Scalar {
+//        val color = frame.get(y, x) ?: doubleArrayOf(255.0, 255.0, 255.0)
+//        return Scalar(color[0], color[1], color[2])
+//    }
+//
+//    // Save the reticle position in SharedPreferences when the activity is paused
+//    override fun onPause() {
+//        super.onPause()
+//        val sharedPreferences = getSharedPreferences("CrosshairPrefs", Context.MODE_PRIVATE)
+//        with(sharedPreferences.edit()) {
+//            putInt("reticleX", reticleX)
+//            putInt("reticleY", reticleY)
+//            apply()
+//        }
+//    }
+//}
+//
+//package com.example.crosshair
+//
+//import android.Manifest
+//import android.content.Context
+//import android.content.pm.PackageManager
+//import android.os.Bundle
+//import android.widget.Button
+//import android.widget.SeekBar
+//import android.widget.TextView
+//import androidx.appcompat.app.AppCompatActivity
+//import androidx.core.app.ActivityCompat
+//import androidx.core.content.ContextCompat
+//import org.opencv.android.CameraBridgeViewBase
+//import org.opencv.android.OpenCVLoader
+//import org.opencv.core.CvType
+//import org.opencv.core.Mat
+//import org.opencv.core.Point
+//import org.opencv.core.Scalar
+//import org.opencv.imgproc.Imgproc
+//
+//class MainActivity : AppCompatActivity(), CameraBridgeViewBase.CvCameraViewListener2 {
+//
+//    private lateinit var buttonStartPreview: Button
+//    private lateinit var buttonStopPreview: Button
+//    private lateinit var openCvCameraView: MyJavaCameraView
+//    private lateinit var inputMat: Mat
+//    private lateinit var seekBarZoom: SeekBar
+//
+//    private var isPreviewActive = false
+//    private lateinit var textViewStatus: TextView
+//    private var isOpenCvInitialized = false
+//    private val cameraPermissionRequestCode = 100
+//
+//    private var reticleX = 320
+//    private var reticleY = 240
+//    private var stepSize = 5
+//    private var distance = 100
+//    private var bulletDrop = 0
+//    private var zoomLevel = 0
+//    private val maxZoomLevel = 70 // Increase max zoom level
+//
+//    override fun onCreate(savedInstanceState: Bundle?) {
+//        super.onCreate(savedInstanceState)
+//        setContentView(R.layout.activity_main)
+//
+//        textViewStatus = findViewById(R.id.textViewStatus)
+//        buttonStartPreview = findViewById(R.id.buttonStartPreview)
+//        buttonStopPreview = findViewById(R.id.buttonStopPreview)
+//        openCvCameraView = findViewById(R.id.cameraView)
+//        seekBarZoom = findViewById(R.id.seekBarZoom)
+//
+//        if (!OpenCVLoader.initDebug()) {
+//            textViewStatus.text = "OpenCV initialization failed"
+//        } else {
+//            textViewStatus.text = "OpenCV initialized"
+//            isOpenCvInitialized = true
+//        }
+//
+//        // Retrieve saved reticle position from SharedPreferences
+//        val sharedPreferences = getSharedPreferences("CrosshairPrefs", Context.MODE_PRIVATE)
+//        reticleX = sharedPreferences.getInt("reticleX", 320)
+//        reticleY = sharedPreferences.getInt("reticleY", 240)
+//
+//        checkCameraPermission()
+//
+//        openCvCameraView.setCameraIndex(CameraBridgeViewBase.CAMERA_ID_BACK)
+//        openCvCameraView.setCvCameraViewListener(this)
+//
+//        buttonStartPreview.setOnClickListener {
+//            if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+//                == PackageManager.PERMISSION_GRANTED) {
+//                openCvCameraView.enableView()
+//                isPreviewActive = true
+//            } else {
+//                checkCameraPermission()
+//            }
+//            updateControls()
+//        }
+//
+//        buttonStopPreview.setOnClickListener {
+//            openCvCameraView.disableView()
+//            isPreviewActive = false
+//            updateControls()
+//        }
+//
+//        findViewById<Button>(R.id.buttonUp).setOnClickListener { reticleY -= stepSize }
+//        findViewById<Button>(R.id.buttonDown).setOnClickListener { reticleY += stepSize }
+//        findViewById<Button>(R.id.buttonLeft).setOnClickListener { reticleX -= stepSize }
+//        findViewById<Button>(R.id.buttonRight).setOnClickListener { reticleX += stepSize }
+//        findViewById<Button>(R.id.buttonDistPlus).setOnClickListener { distance += 10 }
+//        findViewById<Button>(R.id.buttonDistMinus).setOnClickListener { distance -= 10 }
+//        findViewById<Button>(R.id.buttonDropPlus).setOnClickListener { bulletDrop += stepSize }
+//        findViewById<Button>(R.id.buttonDropMinus).setOnClickListener { bulletDrop -= stepSize }
+//
+//        seekBarZoom.max = maxZoomLevel
+//        seekBarZoom.progress = zoomLevel
+//        seekBarZoom.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+//            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+//                zoomLevel = progress
+//                openCvCameraView.setZoom(zoomLevel)
+//            }
+//
+//            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+//            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+//        })
+//
+//        updateControls()
+//    }
+//
+//    private fun checkCameraPermission() {
+//        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+//            != PackageManager.PERMISSION_GRANTED) {
+//            ActivityCompat.requestPermissions(
+//                this,
+//                arrayOf(Manifest.permission.CAMERA),
+//                cameraPermissionRequestCode
+//            )
+//        } else {
+//            openCvCameraView.setCameraPermissionGranted()
+//        }
+//    }
+//
+//    private fun updateControls() {
+//        buttonStartPreview.isEnabled = !isPreviewActive && isOpenCvInitialized
+//        buttonStopPreview.isEnabled = isPreviewActive
+//    }
+//
+//    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+//        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+//        if (requestCode == cameraPermissionRequestCode) {
+//            if ((grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED)) {
+//                openCvCameraView.setCameraPermissionGranted()
+//                textViewStatus.text = "Camera permission granted"
+//            } else {
+//                textViewStatus.text = "Camera permission required"
+//            }
+//        }
+//    }
+//
+//    override fun onCameraViewStarted(width: Int, height: Int) {
+//        inputMat = Mat(height, width, CvType.CV_8UC4)
+//        isPreviewActive = true
+//        updateControls()
+//    }
+//
+//    override fun onCameraViewStopped() {
+//        inputMat.release()
+//        isPreviewActive = false
+//        updateControls()
+//    }
+//
+//    override fun onCameraFrame(inputFrame: CameraBridgeViewBase.CvCameraViewFrame?): Mat {
+//        inputFrame!!.rgba().copyTo(inputMat)
+//
+//        val reticleColor = getContrastingColor(inputMat, reticleX, reticleY)
+//        val distanceTextColor = getTextColorBasedOnBackground(inputMat, Point(150.0, 590.0))
+//        val dropTextColor = getTextColorBasedOnBackground(inputMat, Point(150.0, 560.0))
+//
+//        drawReticle(inputMat, reticleX, reticleY, reticleColor)
+//        drawDistanceMarker(inputMat, distance, distanceTextColor)
+//        drawBulletDropMarker(inputMat, reticleX, reticleY, bulletDrop, reticleColor, dropTextColor)
+//
+//        return inputMat
+//    }
+//
+//    private fun drawReticle(frame: Mat, x: Int, y: Int, color: Scalar) {
+//        Imgproc.line(frame, Point(x - 20.0, y.toDouble()), Point(x + 20.0, y.toDouble()), color, 2)
+//        Imgproc.line(frame, Point(x.toDouble(), y - 20.0), Point(x.toDouble(), y + 20.0), color, 2)
+//    }
+//
+//    private fun drawDistanceMarker(frame: Mat, distance: Int, textColor: Scalar) {
+//        Imgproc.putText(frame, "Distance: $distance m", Point(150.0, 590.0), Imgproc.FONT_HERSHEY_SIMPLEX, 1.0, textColor, 2)
+//    }
+//
+//    private fun drawBulletDropMarker(frame: Mat, x: Int, y: Int, drop: Int, color: Scalar, textColor: Scalar) {
+//        Imgproc.circle(frame, Point(x.toDouble(), (y + drop).toDouble()), 5, color, -1)
+//        Imgproc.putText(frame, "Drop: $drop px", Point(150.0, 560.0), Imgproc.FONT_HERSHEY_SIMPLEX, 1.0, textColor, 2)
+//    }
+//
+//    private fun getContrastingColor(frame: Mat, x: Int, y: Int): Scalar {
+//        val color = frame.get(y, x) ?: doubleArrayOf(255.0, 255.0, 255.0)
+//        val brightness = (color[0] * 0.299 + color[1] * 0.587 + color[2] * 0.114).toInt()
+//        return if (brightness > 128) Scalar(0.0, 0.0, 0.0) else Scalar(255.0, 255.0, 255.0)
+//    }
+//
+//    private fun getTextColorBasedOnBackground(frame: Mat, point: Point): Scalar {
+//        val color = frame.get(point.y.toInt(), point.x.toInt()) ?: doubleArrayOf(255.0, 255.0, 255.0)
+//        val brightness = (color[0] * 0.299 + color[1] * 0.587 + color[2] * 0.114).toInt()
+//        return if (brightness > 128) Scalar(255.0, 0.0, 0.0) else Scalar(0.0, 255.0, 0.0)  // Use green for dark backgrounds and red for light backgrounds
+//    }
+//
+//    private fun getBackgroundColor(frame: Mat, x: Int, y: Int): Scalar {
+//        val color = frame.get(y, x) ?: doubleArrayOf(255.0, 255.0, 255.0)
+//        return Scalar(color[0], color[1], color[2])
+//    }
+//
+//    // Save the reticle position in SharedPreferences when the activity is paused
+//    override fun onPause() {
+//        super.onPause()
+//        val sharedPreferences = getSharedPreferences("CrosshairPrefs", Context.MODE_PRIVATE)
+//        with(sharedPreferences.edit()) {
+//            putInt("reticleX", reticleX)
+//            putInt("reticleY", reticleY)
+//            apply()
+//        }
+//    }
+//}
+
+//without segmentation working crosshair code
+//package com.example.crosshair
+////
+//import android.Manifest
+//import android.content.Context
+//import android.content.pm.PackageManager
+//import android.hardware.Sensor
+//import android.hardware.SensorEvent
+//import android.hardware.SensorEventListener
+//import android.hardware.SensorManager
+//import android.os.Bundle
+//import android.widget.Button
+//import android.widget.SeekBar
+//import android.widget.TextView
+//import androidx.appcompat.app.AppCompatActivity
+//import androidx.core.app.ActivityCompat
+//import androidx.core.content.ContextCompat
+//import org.opencv.android.CameraBridgeViewBase
+//import org.opencv.android.OpenCVLoader
+//import org.opencv.core.CvType
+//import org.opencv.core.Mat
+//import org.opencv.core.Point
+//import org.opencv.core.Scalar
+//import org.opencv.imgproc.Imgproc
+//
+//class MainActivity : AppCompatActivity(), CameraBridgeViewBase.CvCameraViewListener2, SensorEventListener {
+//
+//    private lateinit var buttonStartPreview: Button
+//    private lateinit var buttonStopPreview: Button
+//    private lateinit var openCvCameraView: MyJavaCameraView
+//    private lateinit var inputMat: Mat
+//    private lateinit var seekBarZoom: SeekBar
+//    private lateinit var sensorManager: SensorManager
+//    private var accelerometer: Sensor? = null
+//    private var magnetometer: Sensor? = null
+//    private var gravity: FloatArray? = null
+//    private var geomagnetic: FloatArray? = null
+//
+//    private var isPreviewActive = false
+//    private lateinit var textViewStatus: TextView
+//    private var isOpenCvInitialized = false
+//    private val cameraPermissionRequestCode = 100
+//
+//    private var reticleX = 320
+//    private var reticleY = 240
+//    private var stepSize = 5
+//    private var distance = 100
+//    private var bulletDrop = 0
+//    private var zoomLevel = 0
+//    private val maxZoomLevel = 70 // Increase max zoom level
+//
+//    private var pitch = 0.0f
+//    private var roll = 0.0f
+//
+//    override fun onCreate(savedInstanceState: Bundle?) {
+//        super.onCreate(savedInstanceState)
+//        setContentView(R.layout.activity_main)
+//
+//        textViewStatus = findViewById(R.id.textViewStatus)
+//        buttonStartPreview = findViewById(R.id.buttonStartPreview)
+//        buttonStopPreview = findViewById(R.id.buttonStopPreview)
+//        openCvCameraView = findViewById(R.id.cameraView)
+//        seekBarZoom = findViewById(R.id.seekBarZoom)
+//
+//        if (!OpenCVLoader.initDebug()) {
+//            textViewStatus.text = "OpenCV initialization failed"
+//        } else {
+//            textViewStatus.text = "OpenCV initialized"
+//            isOpenCvInitialized = true
+//        }
+//
+//        // Retrieve saved reticle position from SharedPreferences
+//        val sharedPreferences = getSharedPreferences("CrosshairPrefs", Context.MODE_PRIVATE)
+//        reticleX = sharedPreferences.getInt("reticleX", 320)
+//        reticleY = sharedPreferences.getInt("reticleY", 240)
+//
+//        checkCameraPermission()
+//
+//        openCvCameraView.setCameraIndex(CameraBridgeViewBase.CAMERA_ID_BACK)
+//        openCvCameraView.setCvCameraViewListener(this)
+//
+//        buttonStartPreview.setOnClickListener {
+//            if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+//                == PackageManager.PERMISSION_GRANTED) {
+//                openCvCameraView.enableView()
+//                isPreviewActive = true
+//            } else {
+//                checkCameraPermission()
+//            }
+//            updateControls()
+//        }
+//
+//        buttonStopPreview.setOnClickListener {
+//            openCvCameraView.disableView()
+//            isPreviewActive = false
+//            updateControls()
+//        }
+//
+//        findViewById<Button>(R.id.buttonUp).setOnClickListener { reticleY -= stepSize }
+//        findViewById<Button>(R.id.buttonDown).setOnClickListener { reticleY += stepSize }
+//        findViewById<Button>(R.id.buttonLeft).setOnClickListener { reticleX -= stepSize }
+//        findViewById<Button>(R.id.buttonRight).setOnClickListener { reticleX += stepSize }
+//        findViewById<Button>(R.id.buttonDistPlus).setOnClickListener { distance += 10 }
+//        findViewById<Button>(R.id.buttonDistMinus).setOnClickListener { distance -= 10 }
+//        findViewById<Button>(R.id.buttonDropPlus).setOnClickListener { bulletDrop += stepSize }
+//        findViewById<Button>(R.id.buttonDropMinus).setOnClickListener { bulletDrop -= stepSize }
+//
+//        seekBarZoom.max = maxZoomLevel
+//        seekBarZoom.progress = zoomLevel
+//        seekBarZoom.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+//            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+//                zoomLevel = progress
+//                openCvCameraView.setZoom(zoomLevel)
+//            }
+//
+//            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+//            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+//        })
+//
+//        updateControls()
+//
+//        // Initialize the sensor manager
+//        sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+//        accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+//        magnetometer = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
+//    }
+//
+//    override fun onResume() {
+//        super.onResume()
+//        accelerometer?.also { sensor ->
+//            sensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_UI)
+//        }
+//        magnetometer?.also { sensor ->
+//            sensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_UI)
+//        }
+//    }
+//
+//    override fun onPause() {
+//        super.onPause()
+//        sensorManager.unregisterListener(this)
+//        val sharedPreferences = getSharedPreferences("CrosshairPrefs", Context.MODE_PRIVATE)
+//        with(sharedPreferences.edit()) {
+//            putInt("reticleX", reticleX)
+//            putInt("reticleY", reticleY)
+//            apply()
+//        }
+//    }
+//
+//    override fun onSensorChanged(event: SensorEvent?) {
+//        if (event == null) return
+//        when (event.sensor.type) {
+//            Sensor.TYPE_ACCELEROMETER -> gravity = event.values
+//            Sensor.TYPE_MAGNETIC_FIELD -> geomagnetic = event.values
+//        }
+//
+//        if (gravity != null && geomagnetic != null) {
+//            val rotationMatrix = FloatArray(9)
+//            if (SensorManager.getRotationMatrix(rotationMatrix, null, gravity, geomagnetic)) {
+//                val orientation = FloatArray(3)
+//                SensorManager.getOrientation(rotationMatrix, orientation)
+//                pitch = Math.toDegrees(orientation[1].toDouble()).toFloat()
+//                roll = Math.toDegrees(orientation[2].toDouble()).toFloat()
+//            }
+//        }
+//    }
+//
+//    private fun checkCameraPermission() {
+//        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+//            != PackageManager.PERMISSION_GRANTED) {
+//            ActivityCompat.requestPermissions(
+//                this,
+//                arrayOf(Manifest.permission.CAMERA),
+//                cameraPermissionRequestCode
+//            )
+//        } else {
+//            openCvCameraView.setCameraPermissionGranted()
+//        }
+//    }
+//
+//    private fun updateControls() {
+//        buttonStartPreview.isEnabled = !isPreviewActive && isOpenCvInitialized
+//        buttonStopPreview.isEnabled = isPreviewActive
+//    }
+//
+//    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+//
+//    override fun onCameraViewStarted(width: Int, height: Int) {
+//        inputMat = Mat(height, width, CvType.CV_8UC4)
+//        isPreviewActive = true
+//        updateControls()
+//    }
+//
+//    override fun onCameraViewStopped() {
+//        inputMat.release()
+//        isPreviewActive = false
+//        updateControls()
+//    }
+//
+//    override fun onCameraFrame(inputFrame: CameraBridgeViewBase.CvCameraViewFrame?): Mat {
+//        inputFrame!!.rgba().copyTo(inputMat)
+//
+//        val reticleColor = getContrastingColor(inputMat, reticleX, reticleY)
+//        val distanceTextColor = getTextColorBasedOnBackground(inputMat, Point(150.0, 590.0))
+//        val dropTextColor = getTextColorBasedOnBackground(inputMat, Point(150.0, 560.0))
+//
+//        drawReticle(inputMat, reticleX, reticleY, reticleColor)
+//        drawDistanceMarker(inputMat, distance, distanceTextColor)
+//        drawBulletDropMarker(inputMat, reticleX, reticleY, bulletDrop, reticleColor, dropTextColor)
+//        drawInclinometer(inputMat, pitch, roll)
+//
+//        return inputMat
+//    }
+//
+//    private fun getContrastingColor(frame: Mat, x: Int, y: Int): Scalar {
+//        val color = frame.get(y, x) ?: doubleArrayOf(255.0, 255.0, 255.0)
+//        val brightness = (color[0] * 0.299 + color[1] * 0.587 + color[2] * 0.114).toInt()
+//        return if (brightness > 128) Scalar(0.0, 0.0, 0.0) else Scalar(255.0, 255.0, 255.0)
+//    }
+//
+//    private fun getTextColorBasedOnBackground(frame: Mat, point: Point): Scalar {
+//        val color = frame.get(point.y.toInt(), point.x.toInt()) ?: doubleArrayOf(255.0, 255.0, 255.0)
+//        val brightness = (color[0] * 0.299 + color[1] * 0.587 + color[2] * 0.114).toInt()
+//        return if (brightness > 128) Scalar(255.0, 0.0, 0.0) else Scalar(0.0, 255.0, 0.0)
+//    }
+//
+//    private fun drawReticle(frame: Mat, x: Int, y: Int, color: Scalar) {
+//        Imgproc.line(frame, Point(x - 20.0, y.toDouble()), Point(x + 20.0, y.toDouble()), color, 2)
+//        Imgproc.line(frame, Point(x.toDouble(), y - 20.0), Point(x.toDouble(), y + 20.0), color, 2)
+//    }
+//
+//    private fun drawDistanceMarker(frame: Mat, distance: Int, textColor: Scalar) {
+//        Imgproc.putText(frame, "Distance: $distance m", Point(150.0, 590.0), Imgproc.FONT_HERSHEY_SIMPLEX, 1.0, textColor, 2)
+//    }
+//
+//    private fun drawBulletDropMarker(frame: Mat, x: Int, y: Int, drop: Int, color: Scalar, textColor: Scalar) {
+//        Imgproc.circle(frame, Point(x.toDouble(), (y + drop).toDouble()), 5, color, -1)
+//        Imgproc.putText(frame, "Drop: $drop px", Point(150.0, 560.0), Imgproc.FONT_HERSHEY_SIMPLEX, 1.0, textColor, 2)
+//    }
+//
+//    private fun drawInclinometer(frame: Mat, pitch: Float, roll: Float) {
+//        val frameWidth = frame.cols()
+//        val frameHeight = frame.rows()
+//
+//        val isLandscape = frameWidth > frameHeight
+//
+//        // Horizontal inclinometer line (Roll)
+//        val levelLineY = frameHeight - 100.0
+//        val inclinometerXStart = 50.0
+//        val inclinometerXEnd = frameWidth - 50.0
+//        val inclinometerCenterX = frameWidth / 2.0
+//        val inclinometerTiltX = if (isLandscape) {
+//            inclinometerCenterX - pitch * 10.0 // Adjust the factor to control sensitivity
+//        } else {
+//            inclinometerCenterX - roll * 0.5 // Adjust the factor to control sensitivity
+//        }
+//
+//        // Vertical inclinometer line (Pitch)
+//        val levelLineX = 100.0
+//        val inclinometerYStart = 50.0
+//        val inclinometerYEnd = frameHeight - 50.0
+//        val inclinometerCenterY = frameHeight / 2.0
+//        val inclinometerTiltY = if (isLandscape) {
+//            inclinometerCenterY + roll * 10.0 // Adjust the factor to control sensitivity
+//        } else {
+//            inclinometerCenterY + pitch * 0.5 // Adjust the factor to control sensitivity
+//        }
+//
+//        // Draw the horizontal inclinometer line for roll
+//        Imgproc.line(frame, Point(inclinometerXStart, levelLineY), Point(inclinometerXEnd, levelLineY), Scalar(255.0, 0.0, 0.0), 2)
+//        // Draw the tilt level for roll
+//        Imgproc.circle(frame, Point(inclinometerTiltX, levelLineY), 10, Scalar(0.0, 255.0, 0.0), -1)
+//
+//        // Draw the vertical inclinometer line for pitch
+//        Imgproc.line(frame, Point(levelLineX, inclinometerYStart), Point(levelLineX, inclinometerYEnd), Scalar(0.0, 0.0, 255.0), 2)
+//        // Draw the tilt level for pitch
+//        Imgproc.circle(frame, Point(levelLineX, inclinometerTiltY), 10, Scalar(255.0, 255.0, 0.0), -1)
+//    }
+//
+//}
+
+
+
+////segmentation working
+//package com.example.crosshair
+//
+//import android.Manifest
+//import android.content.Context
+//import android.content.pm.PackageManager
+//import android.hardware.Sensor
+//import android.hardware.SensorEvent
+//import android.hardware.SensorEventListener
+//import android.hardware.SensorManager
+//import android.os.Bundle
+//import android.widget.Button
+//import android.widget.SeekBar
+//import android.widget.TextView
+//import androidx.appcompat.app.AppCompatActivity
+//import androidx.core.app.ActivityCompat
+//import androidx.core.content.ContextCompat
+//import org.opencv.android.CameraBridgeViewBase
+//import org.opencv.android.OpenCVLoader
+//import org.opencv.core.CvType
+//import org.opencv.core.Mat
+//import org.opencv.core.Point
+//import org.opencv.core.Scalar
+//import org.opencv.imgproc.Imgproc
+//import org.tensorflow.lite.Interpreter
+//import java.io.FileInputStream
+//import java.nio.MappedByteBuffer
+//import java.nio.channels.FileChannel
+//import org.opencv.core.Rect
+//import org.opencv.core.Size
+//import android.util.Log
+//import org.opencv.core.Core
+//import org.tensorflow.lite.gpu.GpuDelegate
+//
+//class MainActivity : AppCompatActivity(), CameraBridgeViewBase.CvCameraViewListener2, SensorEventListener {
+//
+//    private lateinit var buttonStartPreview: Button
+//    private lateinit var buttonStopPreview: Button
+//    private lateinit var openCvCameraView: MyJavaCameraView
+//    private lateinit var inputMat: Mat
+//    private lateinit var seekBarZoom: SeekBar
+//    private lateinit var sensorManager: SensorManager
+//    private var accelerometer: Sensor? = null
+//    private var magnetometer: Sensor? = null
+//    private var gravity: FloatArray? = null
+//    private var geomagnetic: FloatArray? = null
+//
+//    private var isPreviewActive = false
+//    private lateinit var textViewStatus: TextView
+//    private var isOpenCvInitialized = false
+//    private val cameraPermissionRequestCode = 100
+//
+//    private var reticleX = 320
+//    private var reticleY = 240
+//    private var stepSize = 5
+//    private var distance = 100
+//    private var bulletDrop = 0
+//    private var zoomLevel = 0
+//    private val maxZoomLevel = 70 // Increase max zoom level
+//    private val THRESHOLD = 0.5 // Adjust based on your model's threshold requirement
+//
+//    private var pitch = 0.0f
+//    private var roll = 0.0f
+//
+//    private lateinit var tflite: Interpreter
+//    private var gpuDelegate: GpuDelegate? = null
+//
+//    companion object {
+//        const val NUM_DETECTIONS = 10 // Adjust based on your model
+//        const val NUM_CLASSES = 91 // Adjust based on your model
+//        val LABELS = arrayOf("label1", "label2", "label3", /*...other labels...*/)
+//    }
+//
+//    private fun loadModelFile(): MappedByteBuffer {
+//        val fileDescriptor = assets.openFd("last_float32.tflite")
+//        val inputStream = FileInputStream(fileDescriptor.fileDescriptor)
+//        val fileChannel = inputStream.channel
+//        val startOffset = fileDescriptor.startOffset
+//        val declaredLength = fileDescriptor.declaredLength
+//        return fileChannel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength)
+//    }
+//
+//    private fun initializeInterpreter() {
+//        // Initialize the GPU delegate
+//        gpuDelegate = GpuDelegate()
+//        val tfliteOptions = Interpreter.Options().apply {
+//            addDelegate(gpuDelegate)
+//        }
+//
+//        // Load the model with the GPU delegate
+//        tflite = Interpreter(loadModelFile(), tfliteOptions)
+//    }
+//
+//    override fun onDestroy() {
+//        super.onDestroy()
+//        // Clean up the GPU delegate
+//        gpuDelegate?.close()
+//    }
+//
+//    override fun onCreate(savedInstanceState: Bundle?) {
+//        super.onCreate(savedInstanceState)
+//        setContentView(R.layout.activity_main)
+//
+//        initializeInterpreter()
+//        textViewStatus = findViewById(R.id.textViewStatus)
+//        buttonStartPreview = findViewById(R.id.buttonStartPreview)
+//        buttonStopPreview = findViewById(R.id.buttonStopPreview)
+//        openCvCameraView = findViewById(R.id.cameraView)
+//        seekBarZoom = findViewById(R.id.seekBarZoom)
+//
+//        if (!OpenCVLoader.initDebug()) {
+//            textViewStatus.text = "OpenCV initialization failed"
+//        } else {
+//            textViewStatus.text = "OpenCV initialized"
+//            isOpenCvInitialized = true
+//        }
+//
+//        // Retrieve saved reticle position from SharedPreferences
+//        val sharedPreferences = getSharedPreferences("CrosshairPrefs", Context.MODE_PRIVATE)
+//        reticleX = sharedPreferences.getInt("reticleX", 320)
+//        reticleY = sharedPreferences.getInt("reticleY", 240)
+//
+//        checkCameraPermission()
+//
+//        openCvCameraView.setCameraIndex(CameraBridgeViewBase.CAMERA_ID_BACK)
+//        openCvCameraView.setCvCameraViewListener(this)
+//
+//        buttonStartPreview.setOnClickListener {
+//            if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+//                == PackageManager.PERMISSION_GRANTED) {
+//                openCvCameraView.enableView()
+//                isPreviewActive = true
+//            } else {
+//                checkCameraPermission()
+//            }
+//            updateControls()
+//        }
+//
+//        buttonStopPreview.setOnClickListener {
+//            openCvCameraView.disableView()
+//            isPreviewActive = false
+//            updateControls()
+//        }
+//
+//        findViewById<Button>(R.id.buttonUp).setOnClickListener { reticleY -= stepSize }
+//        findViewById<Button>(R.id.buttonDown).setOnClickListener { reticleY += stepSize }
+//        findViewById<Button>(R.id.buttonLeft).setOnClickListener { reticleX -= stepSize }
+//        findViewById<Button>(R.id.buttonRight).setOnClickListener { reticleX += stepSize }
+//        findViewById<Button>(R.id.buttonDistPlus).setOnClickListener { distance += 10 }
+//        findViewById<Button>(R.id.buttonDistMinus).setOnClickListener { distance -= 10 }
+//        findViewById<Button>(R.id.buttonDropPlus).setOnClickListener { bulletDrop += stepSize }
+//        findViewById<Button>(R.id.buttonDropMinus).setOnClickListener { bulletDrop -= stepSize }
+//
+//        seekBarZoom.max = maxZoomLevel
+//        seekBarZoom.progress = zoomLevel
+//        seekBarZoom.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+//            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+//                zoomLevel = progress
+//                openCvCameraView.setZoom(zoomLevel)
+//            }
+//
+//            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+//            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+//        })
+//
+//        updateControls()
+//
+//        // Initialize the sensor manager
+//        sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+//        accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+//        magnetometer = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
+//    }
+//
+//    override fun onResume() {
+//        super.onResume()
+//        accelerometer?.also { sensor ->
+//            sensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_UI)
+//        }
+//        magnetometer?.also { sensor ->
+//            sensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_UI)
+//        }
+//    }
+//
+//    override fun onPause() {
+//        super.onPause()
+//        sensorManager.unregisterListener(this)
+//        val sharedPreferences = getSharedPreferences("CrosshairPrefs", Context.MODE_PRIVATE)
+//        with(sharedPreferences.edit()) {
+//            putInt("reticleX", reticleX)
+//            putInt("reticleY", reticleY)
+//            apply()
+//        }
+//    }
+//
+//    override fun onSensorChanged(event: SensorEvent?) {
+//        if (event == null) return
+//        when (event.sensor.type) {
+//            Sensor.TYPE_ACCELEROMETER -> gravity = event.values
+//            Sensor.TYPE_MAGNETIC_FIELD -> geomagnetic = event.values
+//        }
+//
+//        if (gravity != null && geomagnetic != null) {
+//            val rotationMatrix = FloatArray(9)
+//            if (SensorManager.getRotationMatrix(rotationMatrix, null, gravity, geomagnetic)) {
+//                val orientation = FloatArray(3)
+//                SensorManager.getOrientation(rotationMatrix, orientation)
+//                pitch = Math.toDegrees(orientation[1].toDouble()).toFloat()
+//                roll = Math.toDegrees(orientation[2].toDouble()).toFloat()
+//            }
+//        }
+//    }
+//
+//    private fun checkCameraPermission() {
+//        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+//            != PackageManager.PERMISSION_GRANTED) {
+//            ActivityCompat.requestPermissions(
+//                this,
+//                arrayOf(Manifest.permission.CAMERA),
+//                cameraPermissionRequestCode
+//            )
+//        } else {
+//            openCvCameraView.setCameraPermissionGranted()
+//        }
+//    }
+//
+//    private fun detectObjects(inputFrame: Mat): List<DetectionResult> {
+//        val inputArray = preprocessImage(inputFrame)
+//        val outputArray = Array(1) { Array(10) { FloatArray(6) } } // Adjusted to match model's output tensor shape
+//
+//        // Log input and output tensor shapes
+//        for (i in 0 until tflite.inputTensorCount) {
+//            val tensor = tflite.getInputTensor(i)
+//            Log.d("TensorFlowLite", "Input Tensor $i: ${tensor.shape().contentToString()}")
+//        }
+//
+//        for (i in 0 until tflite.outputTensorCount) {
+//            val tensor = tflite.getOutputTensor(i)
+//            Log.d("TensorFlowLite", "Output Tensor $i: ${tensor.shape().contentToString()}")
+//        }
+//
+//        tflite.run(inputArray, outputArray)
+//        return processResults(outputArray)
+//    }
+//
+//    private fun updateControls() {
+//        buttonStartPreview.isEnabled = !isPreviewActive && isOpenCvInitialized
+//        buttonStopPreview.isEnabled = isPreviewActive
+//    }
+//
+//    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+//
+//    override fun onCameraViewStarted(width: Int, height: Int) {
+//        inputMat = Mat(height, width, CvType.CV_8UC4)
+//        isPreviewActive = true
+//        updateControls()
+//    }
+//
+//    override fun onCameraViewStopped() {
+//        inputMat.release()
+//        isPreviewActive = false
+//        updateControls()
+//    }
+//
+//    override fun onCameraFrame(inputFrame: CameraBridgeViewBase.CvCameraViewFrame?): Mat {
+//        inputFrame!!.rgba().copyTo(inputMat)
+//        val detectionResults = detectObjects(inputMat)
+//
+//        val reticleColor = getContrastingColor(inputMat, reticleX, reticleY)
+//        val distanceTextColor = getTextColorBasedOnBackground(inputMat, Point(150.0, 590.0))
+//        val dropTextColor = getTextColorBasedOnBackground(inputMat, Point(150.0, 560.0))
+//
+//        drawReticle(inputMat, reticleX, reticleY, reticleColor)
+//        drawDistanceMarker(inputMat, distance, distanceTextColor)
+//        drawBulletDropMarker(inputMat, reticleX, reticleY, bulletDrop, reticleColor, dropTextColor)
+//        drawInclinometer(inputMat, pitch, roll)
+//        drawDetections(inputMat, detectionResults)
+//
+//        return inputMat
+//    }
+//
+//    private fun drawDetections(frame: Mat, detectionResults: List<DetectionResult>) {
+//        for (detection in detectionResults) {
+//            val box = detection.boundingBox
+//            val label = detection.label
+//            val score = detection.score
+//
+//            // Draw the bounding box
+//            Imgproc.rectangle(frame, box, Scalar(0.0, 255.0, 0.0), 2)
+//
+//            // Draw the label and score
+//            val labelText = "$label: ${"%.2f".format(score)}"
+//            Imgproc.putText(frame, labelText, Point(box.x.toDouble(), box.y.toDouble() - 10), Imgproc.FONT_HERSHEY_SIMPLEX, 0.5, Scalar(0.0, 255.0, 0.0), 2)
+//        }
+//    }
+//
+//    private fun preprocessImage(frame: Mat): Array<Array<Array<FloatArray>>> {
+//        val resizedImage = Mat()
+//        Imgproc.resize(frame, resizedImage, Size(300.0, 300.0)) // Adjust size to match model's expected input size
+//
+//        val floatImage = Mat()
+//        resizedImage.convertTo(floatImage, CvType.CV_32FC3) // Convert to 32-bit float
+//
+//        // Normalize the pixel values to the range [0, 1]
+//        Core.normalize(floatImage, floatImage, 0.0, 1.0, Core.NORM_MINMAX)
+//
+//        val inputArray = Array(1) { Array(300) { Array(300) { FloatArray(3) } } }
+//        for (i in 0 until 300) {
+//            for (j in 0 until 300) {
+//                val pixel = floatImage.get(i, j)
+//                inputArray[0][i][j][0] = pixel[0].toFloat()
+//                inputArray[0][i][j][1] = pixel[1].toFloat()
+//                inputArray[0][i][j][2] = pixel[2].toFloat()
+//            }
+//        }
+//
+//        return inputArray
+//    }
+//
+//    private fun processResults(outputArray: Array<Array<FloatArray>>): List<DetectionResult> {
+//        val detectionResults = mutableListOf<DetectionResult>()
+//
+//        // Track the best detection (highest confidence score)
+//        var bestDetection: DetectionResult? = null
+//
+//        for (i in 0 until outputArray[0].size) {
+//            val classId = outputArray[0][i][1].toInt()
+//            if (classId in 0 until NUM_CLASSES) {
+//                val score = outputArray[0][i][2]
+//                if (score > THRESHOLD) {
+//                    val box = Rect(
+//                        (outputArray[0][i][3] * inputMat.cols()).toInt(),
+//                        (outputArray[0][i][4] * inputMat.rows()).toInt(),
+//                        (outputArray[0][i][5] * inputMat.cols()).toInt() - (outputArray[0][i][3] * inputMat.cols()).toInt(),
+//                        (outputArray[0][i][6] * inputMat.rows()).toInt() - (outputArray[0][i][4] * inputMat.rows()).toInt()
+//                    )
+//                    val label = LABELS[classId]
+//                    val detection = DetectionResult(box, label, score)
+//
+//                    // Update the best detection based on the highest score
+//                    if (bestDetection == null || score > bestDetection.score) {
+//                        bestDetection = detection
+//                    }
+//                }
+//            }
+//        }
+//
+//        // Add only the best detection to the results
+//        if (bestDetection != null) {
+//            detectionResults.add(bestDetection)
+//        }
+//
+//        return detectionResults
+//    }
+//
+//    data class DetectionResult(val boundingBox: Rect, val label: String, val score: Float)
+//
+//    private fun getContrastingColor(frame: Mat, x: Int, y: Int): Scalar {
+//        val color = frame.get(y, x) ?: doubleArrayOf(255.0, 255.0, 255.0)
+//        val brightness = (color[0] * 0.299 + color[1] * 0.587 + color[2] * 0.114).toInt()
+//        return if (brightness > 128) Scalar(0.0, 0.0, 0.0) else Scalar(255.0, 255.0, 255.0)
+//    }
+//
+//    private fun getTextColorBasedOnBackground(frame: Mat, point: Point): Scalar {
+//        val color = frame.get(point.y.toInt(), point.x.toInt()) ?: doubleArrayOf(255.0, 255.0, 255.0)
+//        val brightness = (color[0] * 0.299 + color[1] * 0.587 + color[2] * 0.114).toInt()
+//        return if (brightness > 128) Scalar(255.0, 0.0, 0.0) else Scalar(0.0, 255.0, 0.0)
+//    }
+//
+//    private fun drawReticle(frame: Mat, x: Int, y: Int, color: Scalar) {
+//        Imgproc.line(frame, Point(x - 20.0, y.toDouble()), Point(x + 20.0, y.toDouble()), color, 2)
+//        Imgproc.line(frame, Point(x.toDouble(), y - 20.0), Point(x.toDouble(), y + 20.0), color, 2)
+//    }
+//
+//    private fun drawDistanceMarker(frame: Mat, distance: Int, textColor: Scalar) {
+//        Imgproc.putText(frame, "Distance: $distance m", Point(150.0, 590.0), Imgproc.FONT_HERSHEY_SIMPLEX, 1.0, textColor, 2)
+//    }
+//
+//    private fun drawBulletDropMarker(frame: Mat, x: Int, y: Int, drop: Int, color: Scalar, textColor: Scalar) {
+//        Imgproc.circle(frame, Point(x.toDouble(), (y + drop).toDouble()), 5, color, -1)
+//        Imgproc.putText(frame, "Drop: $drop px", Point(150.0, 560.0), Imgproc.FONT_HERSHEY_SIMPLEX, 1.0, textColor, 2)
+//    }
+//
+//    private fun drawInclinometer(frame: Mat, pitch: Float, roll: Float) {
+//        val frameWidth = frame.cols()
+//        val frameHeight = frame.rows()
+//
+//        val isLandscape = frameWidth > frameHeight
+//
+//        // Horizontal inclinometer line (Roll)
+//        val levelLineY = frameHeight - 100.0
+//        val inclinometerXStart = 50.0
+//        val inclinometerXEnd = frameWidth - 50.0
+//        val inclinometerCenterX = frameWidth / 2.0
+//        val inclinometerTiltX = if (isLandscape) {
+//            inclinometerCenterX - pitch * 1.0 // Adjust the factor to control sensitivity
+//        } else {
+//            inclinometerCenterX - roll * 1.0 // Adjust the factor to control sensitivity
+//        }
+//
+//        // Vertical inclinometer line (Pitch)
+//        val levelLineX = 100.0
+//        val inclinometerYStart = 50.0
+//        val inclinometerYEnd = frameHeight - 50.0
+//        val inclinometerCenterY = frameHeight / 2.0
+//        val inclinometerTiltY = if (isLandscape) {
+//            inclinometerCenterY + roll * 1.0 // Adjust the factor to control sensitivity
+//        } else {
+//            inclinometerCenterY + pitch * 1.0 // Adjust the factor to control sensitivity
+//        }
+//
+//        // Draw the horizontal inclinometer line for roll
+//        Imgproc.line(frame, Point(inclinometerXStart, levelLineY), Point(inclinometerXEnd, levelLineY), Scalar(255.0, 0.0, 0.0), 2)
+//        // Draw the tilt level for roll
+//        Imgproc.circle(frame, Point(inclinometerTiltX, levelLineY), 10, Scalar(0.0, 255.0, 0.0), -1)
+//
+//        // Draw the vertical inclinometer line for pitch
+//        Imgproc.line(frame, Point(levelLineX, inclinometerYStart), Point(levelLineX, inclinometerYEnd), Scalar(0.0, 0.0, 255.0), 2)
+//        // Draw the tilt level for pitch
+//        Imgproc.circle(frame, Point(levelLineX, inclinometerTiltY), 10, Scalar(255.0, 255.0, 0.0), -1)
+//    }
+//}
+//
+//package com.example.crosshair
+////
+//import android.Manifest
+//import android.content.Context
+//import android.content.pm.PackageManager
+//import android.hardware.Sensor
+//import android.hardware.SensorEvent
+//import android.hardware.SensorEventListener
+//import android.hardware.SensorManager
+//import android.os.Bundle
+//import android.widget.Button
+//import android.widget.SeekBar
+//import android.widget.TextView
+//import androidx.appcompat.app.AppCompatActivity
+//import androidx.core.app.ActivityCompat
+//import androidx.core.content.ContextCompat
+//import org.opencv.android.CameraBridgeViewBase
+//import org.opencv.android.OpenCVLoader
+//import org.opencv.core.CvType
+//import org.opencv.core.Mat
+//import org.opencv.core.MatOfPoint
+//import org.opencv.core.Point
+//import org.opencv.core.Scalar
+//import org.opencv.imgproc.Imgproc
+//
+//class MainActivity : AppCompatActivity(), CameraBridgeViewBase.CvCameraViewListener2, SensorEventListener {
+//
+//    private lateinit var buttonStartPreview: Button
+//    private lateinit var buttonStopPreview: Button
+//    private lateinit var openCvCameraView: MyJavaCameraView
+//    private lateinit var inputMat: Mat
+//    private lateinit var seekBarZoom: SeekBar
+//    private lateinit var sensorManager: SensorManager
+//    private var accelerometer: Sensor? = null
+//    private var magnetometer: Sensor? = null
+//    private var gravity: FloatArray? = null
+//    private var geomagnetic: FloatArray? = null
+//
+//    private var isPreviewActive = false
+//    private lateinit var textViewStatus: TextView
+//    private var isOpenCvInitialized = false
+//    private val cameraPermissionRequestCode = 100
+//
+//    private var reticleX = 320
+//    private var reticleY = 240
+//    private var stepSize = 5
+//    private var distance = 100
+//    private var bulletDrop = 0
+//    private var zoomLevel = 0
+//    private val maxZoomLevel = 70 // Increase max zoom level
+//
+//    private var pitch = 0.0f
+//    private var roll = 0.0f
+//
+//    override fun onCreate(savedInstanceState: Bundle?) {
+//        super.onCreate(savedInstanceState)
+//        setContentView(R.layout.activity_main)
+//
+//        textViewStatus = findViewById(R.id.textViewStatus)
+//        buttonStartPreview = findViewById(R.id.buttonStartPreview)
+//        buttonStopPreview = findViewById(R.id.buttonStopPreview)
+//        openCvCameraView = findViewById(R.id.cameraView)
+//        seekBarZoom = findViewById(R.id.seekBarZoom)
+//
+//        if (!OpenCVLoader.initDebug()) {
+//            textViewStatus.text = "OpenCV initialization failed"
+//        } else {
+//            textViewStatus.text = "OpenCV initialized"
+//            isOpenCvInitialized = true
+//        }
+//
+//        // Retrieve saved reticle position from SharedPreferences
+//        val sharedPreferences = getSharedPreferences("CrosshairPrefs", Context.MODE_PRIVATE)
+//        reticleX = sharedPreferences.getInt("reticleX", 320)
+//        reticleY = sharedPreferences.getInt("reticleY", 240)
+//
+//        checkCameraPermission()
+//
+//        openCvCameraView.setCameraIndex(CameraBridgeViewBase.CAMERA_ID_BACK)
+//        openCvCameraView.setCvCameraViewListener(this)
+//
+//        buttonStartPreview.setOnClickListener {
+//            if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+//                == PackageManager.PERMISSION_GRANTED) {
+//                openCvCameraView.enableView()
+//                isPreviewActive = true
+//            } else {
+//                checkCameraPermission()
+//            }
+//            updateControls()
+//        }
+//
+//        buttonStopPreview.setOnClickListener {
+//            openCvCameraView.disableView()
+//            isPreviewActive = false
+//            updateControls()
+//        }
+//
+//        findViewById<Button>(R.id.buttonUp).setOnClickListener { reticleY -= stepSize }
+//        findViewById<Button>(R.id.buttonDown).setOnClickListener { reticleY += stepSize }
+//        findViewById<Button>(R.id.buttonLeft).setOnClickListener { reticleX -= stepSize }
+//        findViewById<Button>(R.id.buttonRight).setOnClickListener { reticleX += stepSize }
+//        findViewById<Button>(R.id.buttonDistPlus).setOnClickListener { distance += 10 }
+//        findViewById<Button>(R.id.buttonDistMinus).setOnClickListener { distance -= 10 }
+//        findViewById<Button>(R.id.buttonDropPlus).setOnClickListener { bulletDrop += stepSize }
+//        findViewById<Button>(R.id.buttonDropMinus).setOnClickListener { bulletDrop -= stepSize }
+//
+//        seekBarZoom.max = maxZoomLevel
+//        seekBarZoom.progress = zoomLevel
+//        seekBarZoom.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+//            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+//                zoomLevel = progress
+//                openCvCameraView.setZoom(zoomLevel)
+//            }
+//
+//            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+//            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+//        })
+//
+//        updateControls()
+//
+//        // Initialize the sensor manager
+//        sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+//        accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+//        magnetometer = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
+//    }
+//
+//    override fun onResume() {
+//        super.onResume()
+//        accelerometer?.also { sensor ->
+//            sensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_UI)
+//        }
+//        magnetometer?.also { sensor ->
+//            sensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_UI)
+//        }
+//    }
+//
+//    override fun onPause() {
+//        super.onPause()
+//        sensorManager.unregisterListener(this)
+//        val sharedPreferences = getSharedPreferences("CrosshairPrefs", Context.MODE_PRIVATE)
+//        with(sharedPreferences.edit()) {
+//            putInt("reticleX", reticleX)
+//            putInt("reticleY", reticleY)
+//            apply()
+//        }
+//    }
+//
+//    override fun onSensorChanged(event: SensorEvent?) {
+//        if (event == null) return
+//        when (event.sensor.type) {
+//            Sensor.TYPE_ACCELEROMETER -> gravity = event.values
+//            Sensor.TYPE_MAGNETIC_FIELD -> geomagnetic = event.values
+//        }
+//
+//        if (gravity != null && geomagnetic != null) {
+//            val rotationMatrix = FloatArray(9)
+//            if (SensorManager.getRotationMatrix(rotationMatrix, null, gravity, geomagnetic)) {
+//                val orientation = FloatArray(3)
+//                SensorManager.getOrientation(rotationMatrix, orientation)
+//                pitch = Math.toDegrees(orientation[1].toDouble()).toFloat()
+//                roll = Math.toDegrees(orientation[2].toDouble()).toFloat()
+//            }
+//        }
+//    }
+//
+//    private fun checkCameraPermission() {
+//        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+//            != PackageManager.PERMISSION_GRANTED) {
+//            ActivityCompat.requestPermissions(
+//                this,
+//                arrayOf(Manifest.permission.CAMERA),
+//                cameraPermissionRequestCode
+//            )
+//        } else {
+//            openCvCameraView.setCameraPermissionGranted()
+//        }
+//    }
+//
+//    private fun updateControls() {
+//        buttonStartPreview.isEnabled = !isPreviewActive && isOpenCvInitialized
+//        buttonStopPreview.isEnabled = isPreviewActive
+//    }
+//
+//    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+//
+//    override fun onCameraViewStarted(width: Int, height: Int) {
+//        inputMat = Mat(height, width, CvType.CV_8UC4)
+//        isPreviewActive = true
+//        updateControls()
+//    }
+//
+//    override fun onCameraViewStopped() {
+//        inputMat.release()
+//        isPreviewActive = false
+//        updateControls()
+//    }
+//
+//    override fun onCameraFrame(inputFrame: CameraBridgeViewBase.CvCameraViewFrame?): Mat {
+//        inputFrame!!.rgba().copyTo(inputMat)
+//
+//        val reticleColor = getContrastingColor(inputMat, reticleX, reticleY)
+//        val distanceTextColor = getTextColorBasedOnBackground(inputMat, Point(150.0, 590.0))
+//        val dropTextColor = getTextColorBasedOnBackground(inputMat, Point(150.0, 560.0))
+//
+//        drawReticle(inputMat, reticleX, reticleY, reticleColor)
+//        drawDistanceMarker(inputMat, distance, distanceTextColor)
+//        drawBulletDropMarker(inputMat, reticleX, reticleY, bulletDrop, reticleColor, dropTextColor)
+//        drawInclinometer(inputMat, pitch, roll)
+//
+//        return inputMat
+//    }
+//
+//    private fun getContrastingColor(frame: Mat, x: Int, y: Int): Scalar {
+//        val color = frame.get(y, x) ?: doubleArrayOf(255.0, 255.0, 255.0)
+//        val brightness = (color[0] * 0.299 + color[1] * 0.587 + color[2] * 0.114).toInt()
+//        return if (brightness > 128) Scalar(241.0, 45.0, 93.0) else Scalar(2.0, 248.0, 249.0)
+//    }
+//
+//    private fun getTextColorBasedOnBackground(frame: Mat, point: Point): Scalar {
+//        val color = frame.get(point.y.toInt(), point.x.toInt()) ?: doubleArrayOf(255.0, 255.0, 255.0)
+//        val brightness = (color[0] * 0.299 + color[1] * 0.587 + color[2] * 0.114).toInt()
+//        return if (brightness > 128) Scalar(255.0, 0.0, 0.0) else Scalar(0.0, 255.0, 0.0)
+//    }
+//
+////    private fun drawReticle(frame: Mat, x: Int, y: Int, color: Scalar) {
+////        Imgproc.line(frame, Point(x - 20.0, y.toDouble()), Point(x + 20.0, y.toDouble()), color, 2)
+////        Imgproc.line(frame, Point(x.toDouble(), y - 20.0), Point(x.toDouble(), y + 20.0), color, 2)
+////    }
+//
+//    private fun drawReticle(frame: Mat, x: Int, y: Int, color: Scalar) {
+//
+//        // Triangle vertices for the main shape
+//        val triangleVertices = MatOfPoint(
+//            Point(x.toDouble(), (y - 25).toDouble()), // Top vertex
+//            Point((x - 22).toDouble(), (y + 13).toDouble()), // Bottom-left
+//            Point((x + 22).toDouble(), (y + 13).toDouble())  // Bottom-right
+//        )
+//
+//        // Draw main triangle
+//        Imgproc.polylines(frame, listOf(triangleVertices), true, color, 2)
+//
+//        // Draw inner triangle
+//        val innerTriangleVertices = MatOfPoint(
+//            Point(x.toDouble(), (y - 7).toDouble()),
+//            Point((x - 6).toDouble(), (y + 3).toDouble()),
+//            Point((x + 6).toDouble(), (y + 3).toDouble())
+//        )
+//        Imgproc.polylines(frame, listOf(innerTriangleVertices), true, color, 1)
+//
+//        // Draw circle at the center
+//        Imgproc.circle(frame, Point(x.toDouble(), y.toDouble()), 2, color, -1)
+//
+//        // Draw lines from the triangle sides toward the center
+//        Imgproc.line(
+//            frame,
+//            Point(x.toDouble(), (y - 25).toDouble()),
+//            Point(x.toDouble(), (y - 7).toDouble()),
+//            color,
+//            1
+//        )
+//        Imgproc.line(
+//            frame,
+//            Point((x - 22).toDouble(), (y + 13).toDouble()),
+//            Point((x - 6).toDouble(), (y + 3).toDouble()),
+//            color,
+//            1
+//        )
+//        Imgproc.line(
+//            frame,
+//            Point((x + 22).toDouble(), (y + 13).toDouble()),
+//            Point((x + 6).toDouble(), (y + 3).toDouble()),
+//            color,
+//            1
+//        )
+//
+//    }
+//
+//    private fun drawDistanceMarker(frame: Mat, distance: Int, textColor: Scalar) {
+//        Imgproc.putText(frame, "Distance: $distance m", Point(150.0, 590.0), Imgproc.FONT_HERSHEY_SIMPLEX, 1.0, textColor, 2)
+//    }
+//
+//    private fun drawBulletDropMarker(frame: Mat, x: Int, y: Int, drop: Int, color: Scalar, textColor: Scalar) {
+//        Imgproc.circle(frame, Point(x.toDouble(), (y + drop).toDouble()), 5, color, -1)
+//        Imgproc.putText(frame, "Drop: $drop px", Point(150.0, 560.0), Imgproc.FONT_HERSHEY_SIMPLEX, 1.0, textColor, 2)
+//    }
+//
+//    private fun drawInclinometer(frame: Mat, pitch: Float, roll: Float) {
+//        val frameWidth = frame.cols()
+//        val frameHeight = frame.rows()
+//
+//        val isLandscape = frameWidth > frameHeight
+//
+//        // Horizontal inclinometer line (Roll)
+//        val levelLineY = frameHeight - 100.0
+//        val inclinometerXStart = 50.0
+//        val inclinometerXEnd = frameWidth - 50.0
+//        val inclinometerCenterX = frameWidth / 2.0
+//        val inclinometerTiltX = if (isLandscape) {
+//            inclinometerCenterX - pitch * 10.0 // Adjust the factor to control sensitivity
+//        } else {
+//            inclinometerCenterX - roll * 0.5 // Adjust the factor to control sensitivity
+//        }
+//
+//        // Vertical inclinometer line (Pitch)
+//        val levelLineX = 100.0
+//        val inclinometerYStart = 50.0
+//        val inclinometerYEnd = frameHeight - 50.0
+//        val inclinometerCenterY = frameHeight / 2.0
+//        val inclinometerTiltY = if (isLandscape) {
+//            inclinometerCenterY + roll * 10.0 // Adjust the factor to control sensitivity
+//        } else {
+//            inclinometerCenterY + pitch * 0.5 // Adjust the factor to control sensitivity
+//        }
+//
+//        // Draw the horizontal inclinometer line for roll
+//        Imgproc.line(frame, Point(inclinometerXStart, levelLineY), Point(inclinometerXEnd, levelLineY), Scalar(255.0, 0.0, 0.0), 2)
+//        // Draw the tilt level for roll
+//        Imgproc.circle(frame, Point(inclinometerTiltX, levelLineY), 10, Scalar(0.0, 255.0, 0.0), -1)
+//
+//        // Draw the vertical inclinometer line for pitch
+//        Imgproc.line(frame, Point(levelLineX, inclinometerYStart), Point(levelLineX, inclinometerYEnd), Scalar(0.0, 0.0, 255.0), 2)
+//        // Draw the tilt level for pitch
+//        Imgproc.circle(frame, Point(levelLineX, inclinometerTiltY), 10, Scalar(255.0, 255.0, 0.0), -1)
+//    }
+//
+//}
+
+// with invert option
+//package com.example.crosshair
+//
+//import android.Manifest
+//import android.content.Context
+//import android.content.pm.PackageManager
+//import android.hardware.Sensor
+//import android.hardware.SensorEvent
+//import android.hardware.SensorEventListener
+//import android.hardware.SensorManager
+//import android.os.Bundle
+//import android.widget.Button
+//import android.widget.SeekBar
+//import android.widget.TextView
+//import androidx.appcompat.app.AppCompatActivity
+//import androidx.core.app.ActivityCompat
+//import androidx.core.content.ContextCompat
+//import org.opencv.android.CameraBridgeViewBase
+//import org.opencv.android.OpenCVLoader
+//import org.opencv.core.Core
+//import org.opencv.core.CvType
+//import org.opencv.core.Mat
+//import org.opencv.core.MatOfPoint
+//import org.opencv.core.Point
+//import org.opencv.core.Scalar
+//import org.opencv.imgproc.Imgproc
+//
+//class MainActivity : AppCompatActivity(), CameraBridgeViewBase.CvCameraViewListener2, SensorEventListener {
+//
+//    private lateinit var buttonStartPreview: Button
+//    private lateinit var buttonStopPreview: Button
+//    private lateinit var buttonInvert: Button
+//    private lateinit var openCvCameraView: MyJavaCameraView
+//    private lateinit var inputMat: Mat
+//    private lateinit var seekBarZoom: SeekBar
+//    private lateinit var sensorManager: SensorManager
+//    private var accelerometer: Sensor? = null
+//    private var magnetometer: Sensor? = null
+//    private var gravity: FloatArray? = null
+//    private var geomagnetic: FloatArray? = null
+//
+//    private var isPreviewActive = false
+//    private lateinit var textViewStatus: TextView
+//    private var isOpenCvInitialized = false
+//    private val cameraPermissionRequestCode = 100
+//
+//    private var reticleX = 320
+//    private var reticleY = 240
+//    private var stepSize = 5
+//    private var distance = 100
+//    private var bulletDrop = 0
+//    private var zoomLevel = 0
+//    private val maxZoomLevel = 70 // Increase max zoom level
+//
+//    private var pitch = 0.0f
+//    private var roll = 0.0f
+//
+//    private var invertPreview = false // Flag for invert preview
+//
+//    override fun onCreate(savedInstanceState: Bundle?) {
+//        super.onCreate(savedInstanceState)
+//        setContentView(R.layout.activity_main)
+//
+//        textViewStatus = findViewById(R.id.textViewStatus)
+//        buttonStartPreview = findViewById(R.id.buttonStartPreview)
+//        buttonStopPreview = findViewById(R.id.buttonStopPreview)
+//        buttonInvert = findViewById(R.id.buttonInvert)
+//        openCvCameraView = findViewById(R.id.cameraView)
+//        seekBarZoom = findViewById(R.id.seekBarZoom)
+//
+//        if (!OpenCVLoader.initDebug()) {
+//            textViewStatus.text = "OpenCV initialization failed"
+//        } else {
+//            textViewStatus.text = "OpenCV initialized"
+//            isOpenCvInitialized = true
+//        }
+//
+//        // Retrieve saved reticle position from SharedPreferences
+//        val sharedPreferences = getSharedPreferences("CrosshairPrefs", Context.MODE_PRIVATE)
+//        reticleX = sharedPreferences.getInt("reticleX", 320)
+//        reticleY = sharedPreferences.getInt("reticleY", 240)
+//
+//        checkCameraPermission()
+//
+//        openCvCameraView.setCameraIndex(CameraBridgeViewBase.CAMERA_ID_BACK)
+//        openCvCameraView.setCvCameraViewListener(this)
+//
+//        buttonStartPreview.setOnClickListener {
+//            if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+//                == PackageManager.PERMISSION_GRANTED) {
+//                openCvCameraView.enableView()
+//                isPreviewActive = true
+//            } else {
+//                checkCameraPermission()
+//            }
+//            updateControls()
+//        }
+//
+//        buttonStopPreview.setOnClickListener {
+//            openCvCameraView.disableView()
+//            isPreviewActive = false
+//            updateControls()
+//        }
+//
+//        buttonInvert.setOnClickListener {
+//            invertPreview = !invertPreview // Toggle invert preview
+//        }
+//
+//        findViewById<Button>(R.id.buttonUp).setOnClickListener { reticleY -= stepSize }
+//        findViewById<Button>(R.id.buttonDown).setOnClickListener { reticleY += stepSize }
+//        findViewById<Button>(R.id.buttonLeft).setOnClickListener { reticleX -= stepSize }
+//        findViewById<Button>(R.id.buttonRight).setOnClickListener { reticleX += stepSize }
+//        findViewById<Button>(R.id.buttonDistPlus).setOnClickListener { distance += 10 }
+//        findViewById<Button>(R.id.buttonDistMinus).setOnClickListener { distance -= 10 }
+//        findViewById<Button>(R.id.buttonDropPlus).setOnClickListener { bulletDrop += stepSize }
+//        findViewById<Button>(R.id.buttonDropMinus).setOnClickListener { bulletDrop -= stepSize }
+//
+//        seekBarZoom.max = maxZoomLevel
+//        seekBarZoom.progress = zoomLevel
+//        seekBarZoom.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+//            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
+//                zoomLevel = progress
+//                openCvCameraView.setZoom(zoomLevel)
+//            }
+//
+//            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+//            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
+//        })
+//
+//        updateControls()
+//
+//        // Initialize the sensor manager
+//        sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+//        accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+//        magnetometer = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
+//    }
+//
+//    override fun onResume() {
+//        super.onResume()
+//        accelerometer?.also { sensor ->
+//            sensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_UI)
+//        }
+//        magnetometer?.also { sensor ->
+//            sensorManager.registerListener(this, sensor, SensorManager.SENSOR_DELAY_UI)
+//        }
+//    }
+//
+//    override fun onPause() {
+//        super.onPause()
+//        sensorManager.unregisterListener(this)
+//        val sharedPreferences = getSharedPreferences("CrosshairPrefs", Context.MODE_PRIVATE)
+//        with(sharedPreferences.edit()) {
+//            putInt("reticleX", reticleX)
+//            putInt("reticleY", reticleY)
+//            apply()
+//        }
+//    }
+//
+//    override fun onSensorChanged(event: SensorEvent?) {
+//        if (event == null) return
+//        when (event.sensor.type) {
+//            Sensor.TYPE_ACCELEROMETER -> gravity = event.values
+//            Sensor.TYPE_MAGNETIC_FIELD -> geomagnetic = event.values
+//        }
+//
+//        if (gravity != null && geomagnetic != null) {
+//            val rotationMatrix = FloatArray(9)
+//            if (SensorManager.getRotationMatrix(rotationMatrix, null, gravity, geomagnetic)) {
+//                val orientation = FloatArray(3)
+//                SensorManager.getOrientation(rotationMatrix, orientation)
+//                pitch = Math.toDegrees(orientation[1].toDouble()).toFloat()
+//                roll = Math.toDegrees(orientation[2].toDouble()).toFloat()
+//            }
+//        }
+//    }
+//
+//    private fun checkCameraPermission() {
+//        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+//            != PackageManager.PERMISSION_GRANTED) {
+//            ActivityCompat.requestPermissions(
+//                this,
+//                arrayOf(Manifest.permission.CAMERA),
+//                cameraPermissionRequestCode
+//            )
+//        } else {
+//            openCvCameraView.setCameraPermissionGranted()
+//        }
+//    }
+//
+//    private fun updateControls() {
+//        buttonStartPreview.isEnabled = !isPreviewActive && isOpenCvInitialized
+//        buttonStopPreview.isEnabled = isPreviewActive
+//        buttonInvert.isEnabled = isPreviewActive
+//    }
+//
+//    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+//
+//    override fun onCameraViewStarted(width: Int, height: Int) {
+//        inputMat = Mat(height, width, CvType.CV_8UC4)
+//        isPreviewActive = true
+//        updateControls()
+//    }
+//
+//    override fun onCameraViewStopped() {
+//        inputMat.release()
+//        isPreviewActive = false
+//        updateControls()
+//    }
+//
+//    override fun onCameraFrame(inputFrame: CameraBridgeViewBase.CvCameraViewFrame?): Mat {
+//        inputFrame!!.rgba().copyTo(inputMat)
+//
+//        if (invertPreview) {
+//            Core.bitwise_not(inputMat, inputMat) // Invert colors
+//        }
+//
+//        val reticleColor = getContrastingColor(inputMat, reticleX, reticleY)
+//        val distanceTextColor = getTextColorBasedOnBackground(inputMat, Point(150.0, 590.0))
+//        val dropTextColor = getTextColorBasedOnBackground(inputMat, Point(150.0, 560.0))
+//
+//        drawReticle(inputMat, reticleX, reticleY, reticleColor)
+//        drawDistanceMarker(inputMat, distance, distanceTextColor)
+//        drawBulletDropMarker(inputMat, reticleX, reticleY, bulletDrop, reticleColor, dropTextColor)
+//        drawInclinometer(inputMat, pitch, roll)
+//
+//        return inputMat
+//    }
+//
+//    private fun getContrastingColor(frame: Mat, x: Int, y: Int): Scalar {
+//        val color = frame.get(y, x) ?: doubleArrayOf(255.0, 255.0, 255.0)
+//        val brightness = (color[0] * 0.299 + color[1] * 0.587 + color[2] * 0.114).toInt()
+//        return if (brightness > 128) Scalar(241.0, 45.0, 93.0) else Scalar(2.0, 248.0, 249.0)
+//    }
+//
+//    private fun getTextColorBasedOnBackground(frame: Mat, point: Point): Scalar {
+//        val color = frame.get(point.y.toInt(), point.x.toInt()) ?: doubleArrayOf(255.0, 255.0, 255.0)
+//        val brightness = (color[0] * 0.299 + color[1] * 0.587 + color[2] * 0.114).toInt()
+//        return if (brightness > 128) Scalar(255.0, 0.0, 0.0) else Scalar(0.0, 255.0, 0.0)
+//    }
+//
+//    private fun drawReticle(frame: Mat, x: Int, y: Int, color: Scalar) {
+//
+//        // Triangle vertices for the main shape
+//        val triangleVertices = MatOfPoint(
+//            Point(x.toDouble(), (y - 25).toDouble()), // Top vertex
+//            Point((x - 22).toDouble(), (y + 13).toDouble()), // Bottom-left
+//            Point((x + 22).toDouble(), (y + 13).toDouble())  // Bottom-right
+//        )
+//
+//        // Draw main triangle
+//        Imgproc.polylines(frame, listOf(triangleVertices), true, color, 2)
+//
+//        // Draw inner triangle
+//        val innerTriangleVertices = MatOfPoint(
+//            Point(x.toDouble(), (y - 7).toDouble()),
+//            Point((x - 6).toDouble(), (y + 3).toDouble()),
+//            Point((x + 6).toDouble(), (y + 3).toDouble())
+//        )
+//        Imgproc.polylines(frame, listOf(innerTriangleVertices), true, color, 1)
+//
+//        // Draw circle at the center
+//        Imgproc.circle(frame, Point(x.toDouble(), y.toDouble()), 2, color, -1)
+//
+//        // Draw lines from the triangle sides toward the center
+//        Imgproc.line(
+//            frame,
+//            Point(x.toDouble(), (y - 25).toDouble()),
+//            Point(x.toDouble(), (y - 7).toDouble()),
+//            color,
+//            1
+//        )
+//        Imgproc.line(
+//            frame,
+//            Point((x - 22).toDouble(), (y + 13).toDouble()),
+//            Point((x - 6).toDouble(), (y + 3).toDouble()),
+//            color,
+//            1
+//        )
+//        Imgproc.line(
+//            frame,
+//            Point((x + 22).toDouble(), (y + 13).toDouble()),
+//            Point((x + 6).toDouble(), (y + 3).toDouble()),
+//            color,
+//            1
+//        )
+//
+//    }
+//
+//    private fun drawDistanceMarker(frame: Mat, distance: Int, textColor: Scalar) {
+//        Imgproc.putText(frame, "Distance: $distance m", Point(150.0, 590.0), Imgproc.FONT_HERSHEY_SIMPLEX, 1.0, textColor, 2)
+//    }
+//
+//    private fun drawBulletDropMarker(frame: Mat, x: Int, y: Int, drop: Int, color: Scalar, textColor: Scalar) {
+//        Imgproc.circle(frame, Point(x.toDouble(), (y + drop).toDouble()), 5, color, -1)
+//        Imgproc.putText(frame, "Drop: $drop px", Point(150.0, 560.0), Imgproc.FONT_HERSHEY_SIMPLEX, 1.0, textColor, 2)
+//    }
+//
+//    private fun drawInclinometer(frame: Mat, pitch: Float, roll: Float) {
+//        val frameWidth = frame.cols()
+//        val frameHeight = frame.rows()
+//
+//        val isLandscape = frameWidth > frameHeight
+//
+//        // Horizontal inclinometer line (Roll)
+//        val levelLineY = frameHeight - 100.0
+//        val inclinometerXStart = 50.0
+//        val inclinometerXEnd = frameWidth - 50.0
+//        val inclinometerCenterX = frameWidth / 2.0
+//        val inclinometerTiltX = if (isLandscape) {
+//            inclinometerCenterX - pitch * 10.0 // Adjust the factor to control sensitivity
+//        } else {
+//            inclinometerCenterX - roll * 0.5 // Adjust the factor to control sensitivity
+//        }
+//
+//        // Vertical inclinometer line (Pitch)
+//        val levelLineX = 100.0
+//        val inclinometerYStart = 50.0
+//        val inclinometerYEnd = frameHeight - 50.0
+//        val inclinometerCenterY = frameHeight / 2.0
+//        val inclinometerTiltY = if (isLandscape) {
+//            inclinometerCenterY + roll * 10.0 // Adjust the factor to control sensitivity
+//        } else {
+//            inclinometerCenterY + pitch * 0.5 // Adjust the factor to control sensitivity
+//        }
+//
+//        // Draw the horizontal inclinometer line for roll
+//        Imgproc.line(frame, Point(inclinometerXStart, levelLineY), Point(inclinometerXEnd, levelLineY), Scalar(255.0, 0.0, 0.0), 2)
+//        // Draw the tilt level for roll
+//        Imgproc.circle(frame, Point(inclinometerTiltX, levelLineY), 10, Scalar(0.0, 255.0, 0.0), -1)
+//
+//        // Draw the vertical inclinometer line for pitch
+//        Imgproc.line(frame, Point(levelLineX, inclinometerYStart), Point(levelLineX, inclinometerYEnd), Scalar(0.0, 0.0, 255.0), 2)
+//        // Draw the tilt level for pitch
+//        Imgproc.circle(frame, Point(levelLineX, inclinometerTiltY), 10, Scalar(255.0, 255.0, 0.0), -1)
+//    }
+//
+//    private fun invertColors(frame: Mat) {
+//        Core.bitwise_not(frame, frame)
+//    }
+//}
